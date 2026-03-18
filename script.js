@@ -137,6 +137,9 @@ const blogPostsContainer = document.getElementById("blog-posts");
 const blogMessage = document.getElementById("blog-message");
 const blogResetButton = document.getElementById("blog-reset");
 const blogClearAllButton = document.getElementById("blog-clear-all");
+const contactForm = document.getElementById("gmail-contact-form");
+const contactResetButton = document.getElementById("contact-reset");
+const contactFormNote = document.getElementById("contact-form-note");
 
 function loadPosts() {
   try {
@@ -281,3 +284,48 @@ blogPostsContainer.addEventListener("click", (event) => {
   renderPosts(posts);
   blogMessage.textContent = "Post deleted.";
 });
+
+if (contactForm && contactFormNote) {
+  contactForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(contactForm);
+    const name = formData.get("name").toString().trim();
+    const email = formData.get("email").toString().trim();
+    const organization = formData.get("organization").toString().trim();
+    const inquiryType = formData.get("type").toString().trim();
+    const subject = formData.get("subject").toString().trim();
+    const message = formData.get("message").toString().trim();
+
+    if (!name || !email || !subject || !message) {
+      contactFormNote.textContent = "Please complete your name, email, subject, and message.";
+      return;
+    }
+
+    const emailBody = [
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Organization: ${organization || "Not provided"}`,
+      `Inquiry Type: ${inquiryType || "General"}`,
+      "",
+      "Message:",
+      message,
+    ].join("\n");
+
+    const gmailUrl =
+      "https://mail.google.com/mail/?view=cm&fs=1" +
+      `&to=${encodeURIComponent("ryda.rohingya@gmail.com")}` +
+      `&su=${encodeURIComponent(`[RYDA Website] ${subject}`)}` +
+      `&body=${encodeURIComponent(emailBody)}`;
+
+    window.open(gmailUrl, "_blank", "noopener");
+    contactFormNote.textContent = "Gmail draft opened in a new tab.";
+  });
+}
+
+if (contactResetButton && contactForm && contactFormNote) {
+  contactResetButton.addEventListener("click", () => {
+    contactForm.reset();
+    contactFormNote.textContent = "Form cleared.";
+  });
+}
