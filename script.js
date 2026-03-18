@@ -1,5 +1,5 @@
 const revealItems = document.querySelectorAll(
-  ".hero-copy, .hero-panel, .card, .program-card, .value-card, .cta-card, .story-band, .impact-item, .blog-post"
+  ".hero-copy, .hero-panel, .card, .program-card, .value-card, .cta-card, .story-band, .impact-item, .journey-card, .blog-post, .contact-card"
 );
 
 const observer = new IntersectionObserver(
@@ -25,7 +25,7 @@ revealItems.forEach((item, index) => {
 const heroOrbs = document.querySelectorAll(".hero-orb");
 const navLinks = document.querySelectorAll(".site-nav a");
 const sections = document.querySelectorAll("main section[id], footer[id]");
-const interactiveCards = document.querySelectorAll(".card, .program-card, .value-card, .impact-item, .blog-post");
+const interactiveCards = document.querySelectorAll(".card, .program-card, .value-card, .impact-item, .journey-card, .blog-post, .contact-card");
 
 function setActiveNav() {
   let currentId = "";
