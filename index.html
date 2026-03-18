@@ -563,56 +563,116 @@
         <p>Connecting communities, strengthening resilience, and advocating for dignity.</p>
       </div>
 
-      <div class="contact-grid">
-        <a class="contact-card" href="mailto:ryda.rohingya@gmail.com">
-          <span class="contact-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 7.5L11.12 12.24C11.66 12.6 12.34 12.6 12.88 12.24L20 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <rect x="3.5" y="5" width="17" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
-          <span class="contact-label">Email</span>
-          <strong>ryda.rohingya@gmail.com</strong>
-          <span class="contact-meta">For partnerships, support, and collaboration.</span>
-        </a>
+      <div class="contact-right">
+        <article class="contact-form-card card">
+          <div class="contact-form-head">
+            <p class="section-tag">Send A Message</p>
+            <h3>Open a Gmail draft addressed to RYDA</h3>
+            <p>
+              Fill out the form and we will prepare a Gmail message to
+              <strong>ryda.rohingya@gmail.com</strong> with all your details.
+            </p>
+          </div>
 
-        <a class="contact-card" href="tel:+8801843959525">
-          <span class="contact-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M8.45 4.5H5.8C5.08 4.5 4.5 5.08 4.5 5.8C4.5 13.92 10.08 19.5 18.2 19.5C18.92 19.5 19.5 18.92 19.5 18.2V15.56C19.5 15.02 19.16 14.54 18.64 14.36L15.76 13.4C15.29 13.24 14.77 13.37 14.42 13.73L13.1 15.04C10.86 13.9 9.1 12.14 7.96 9.9L9.27 8.58C9.63 8.23 9.76 7.71 9.6 7.24L8.64 4.36C8.46 3.84 7.98 3.5 7.44 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
-          <span class="contact-label">Phone</span>
-          <strong>+880 1843-959525</strong>
-          <span class="contact-meta">Direct line for outreach and organizational contact.</span>
-        </a>
+          <form class="contact-form" id="gmail-contact-form">
+            <div class="contact-form-grid">
+              <label>
+                <span>Full Name</span>
+                <input id="contact-name" name="name" type="text" maxlength="80" required>
+              </label>
+              <label>
+                <span>Email Address</span>
+                <input id="contact-email" name="email" type="email" maxlength="120" required>
+              </label>
+            </div>
 
-        <a class="contact-card" href="https://x.com/RYDA35" target="_blank" rel="noreferrer">
-          <span class="contact-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M18.8 4.5H21L16.1 10.12L21.86 19.5H17.35L13.82 13.83L8.87 19.5H6.65L11.89 13.5L6.36 4.5H10.99L14.18 9.89L18.8 4.5Z" fill="currentColor"/>
-            </svg>
-          </span>
-          <span class="contact-label">X</span>
-          <strong>@RYDA35</strong>
-          <span class="contact-meta">Follow advocacy updates, news, and public statements.</span>
-        </a>
+            <div class="contact-form-grid">
+              <label>
+                <span>Organization</span>
+                <input id="contact-organization" name="organization" type="text" maxlength="120" placeholder="Optional">
+              </label>
+              <label>
+                <span>Inquiry Type</span>
+                <select id="contact-type" name="type">
+                  <option value="Partnership">Partnership</option>
+                  <option value="Support">Support</option>
+                  <option value="Advocacy">Advocacy</option>
+                  <option value="Media">Media</option>
+                  <option value="General">General</option>
+                </select>
+              </label>
+            </div>
 
-        <a class="contact-card" href="https://www.facebook.com/share/1B9sauUHNF/" target="_blank" rel="noreferrer">
-          <span class="contact-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M13.35 20V12.75H15.78L16.15 9.92H13.35V8.12C13.35 7.3 13.58 6.74 14.76 6.74H16.25V4.2C15.55 4.12 14.84 4.08 14.13 4.08C11.99 4.08 10.52 5.39 10.52 7.8V9.92H8.08V12.75H10.52V20H13.35Z" fill="currentColor"/>
-            </svg>
-          </span>
-          <span class="contact-label">Facebook</span>
-          <strong>RYDA Community</strong>
-          <span class="contact-meta">See community stories, updates, and engagement posts.</span>
-        </a>
+            <label>
+              <span>Subject</span>
+              <input id="contact-subject" name="subject" type="text" maxlength="140" required>
+            </label>
+
+            <label>
+              <span>Message</span>
+              <textarea id="contact-message" name="message" rows="6" maxlength="3000" required></textarea>
+            </label>
+
+            <div class="contact-form-actions">
+              <button class="button button-primary" type="submit">Open Gmail Draft</button>
+              <button class="button button-secondary" type="button" id="contact-reset">Clear Form</button>
+            </div>
+            <p class="form-note contact-form-note" id="contact-form-note" aria-live="polite"></p>
+          </form>
+        </article>
+
+        <div class="contact-grid">
+          <a class="contact-card" href="mailto:ryda.rohingya@gmail.com">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M4 7.5L11.12 12.24C11.66 12.6 12.34 12.6 12.88 12.24L20 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="3.5" y="5" width="17" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/>
+              </svg>
+            </span>
+            <span class="contact-label">Email</span>
+            <strong>ryda.rohingya@gmail.com</strong>
+            <span class="contact-meta">For partnerships, support, and collaboration.</span>
+          </a>
+
+          <a class="contact-card" href="tel:+8801843959525">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M8.45 4.5H5.8C5.08 4.5 4.5 5.08 4.5 5.8C4.5 13.92 10.08 19.5 18.2 19.5C18.92 19.5 19.5 18.92 19.5 18.2V15.56C19.5 15.02 19.16 14.54 18.64 14.36L15.76 13.4C15.29 13.24 14.77 13.37 14.42 13.73L13.1 15.04C10.86 13.9 9.1 12.14 7.96 9.9L9.27 8.58C9.63 8.23 9.76 7.71 9.6 7.24L8.64 4.36C8.46 3.84 7.98 3.5 7.44 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="contact-label">Phone</span>
+            <strong>+880 1843-959525</strong>
+            <span class="contact-meta">Direct line for outreach and organizational contact.</span>
+          </a>
+
+          <a class="contact-card" href="https://x.com/RYDA35" target="_blank" rel="noreferrer">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M18.8 4.5H21L16.1 10.12L21.86 19.5H17.35L13.82 13.83L8.87 19.5H6.65L11.89 13.5L6.36 4.5H10.99L14.18 9.89L18.8 4.5Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="contact-label">X</span>
+            <strong>@RYDA35</strong>
+            <span class="contact-meta">Follow advocacy updates, news, and public statements.</span>
+          </a>
+
+          <a class="contact-card" href="https://www.facebook.com/share/1B9sauUHNF/" target="_blank" rel="noreferrer">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M13.35 20V12.75H15.78L16.15 9.92H13.35V8.12C13.35 7.3 13.58 6.74 14.76 6.74H16.25V4.2C15.55 4.12 14.84 4.08 14.13 4.08C11.99 4.08 10.52 5.39 10.52 7.8V9.92H8.08V12.75H10.52V20H13.35Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="contact-label">Facebook</span>
+            <strong>RYDA Community</strong>
+            <span class="contact-meta">See community stories, updates, and engagement posts.</span>
+          </a>
+        </div>
       </div>
 
       <div class="footer-note">
         <p class="section-tag">Contact</p>
         <p>RYDA is building visibility, resilience, and opportunity for Rohingya youth, girls, and women.</p>
+        <p>Your message will open inside Gmail so you can review and send it directly.</p>
       </div>
     </footer>
   </div>
