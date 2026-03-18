@@ -23,9 +23,29 @@ revealItems.forEach((item, index) => {
 });
 
 const heroOrbs = document.querySelectorAll(".hero-orb");
+const siteHeader = document.querySelector(".site-header");
+const menuToggle = document.querySelector(".menu-toggle");
+const siteNav = document.getElementById("site-nav");
 const navLinks = document.querySelectorAll(".site-nav a");
 const sections = document.querySelectorAll("main section[id], footer[id]");
 const interactiveCards = document.querySelectorAll(".card, .program-card, .value-card, .impact-item, .journey-card, .blog-post, .contact-card");
+
+function setMenuState(isOpen) {
+  if (!siteHeader || !menuToggle || !siteNav) {
+    return;
+  }
+
+  siteHeader.classList.toggle("menu-open", isOpen);
+  menuToggle.setAttribute("aria-expanded", String(isOpen));
+  menuToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+}
+
+if (menuToggle) {
+  menuToggle.addEventListener("click", () => {
+    const isOpen = !siteHeader.classList.contains("menu-open");
+    setMenuState(isOpen);
+  });
+}
 
 function setActiveNav() {
   let currentId = "";
@@ -44,6 +64,11 @@ function setActiveNav() {
 
 setActiveNav();
 window.addEventListener("scroll", setActiveNav, { passive: true });
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 760) {
+    setMenuState(false);
+  }
+});
 window.addEventListener(
   "scroll",
   () => {
@@ -55,6 +80,14 @@ window.addEventListener(
   },
   { passive: true }
 );
+
+navLinks.forEach((link) => {
+  link.addEventListener("click", () => {
+    if (window.innerWidth <= 760) {
+      setMenuState(false);
+    }
+  });
+});
 
 interactiveCards.forEach((card) => {
   card.addEventListener("pointermove", (event) => {
