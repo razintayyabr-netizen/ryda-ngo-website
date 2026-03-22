@@ -232,24 +232,24 @@ const blogStorageKey = "ryda-blog-posts";
 const defaultPosts = [
   {
     id: "post-1",
-    title: "RYDA Expands Education Support for Rohingya Youth",
-    category: "Education",
+    title: "RYDA Releases New Documentation Brief on Restrictions on Fundamental Freedoms",
+    category: "Documentation",
     author: "RYDA Team",
     summary:
-      "A new round of learning support activities is helping more young people continue their education in camp settings.",
+      "A new RYDA briefing highlights restrictions on expression, movement, and association affecting Rohingya communities.",
     content:
-      "RYDA continues to invest in education support for Rohingya youth, girls, and women through community learning initiatives, awareness sessions, and practical guidance that helps learners stay connected to opportunity.\n\nThis work strengthens confidence, encourages participation, and supports a more resilient future for the community.",
+      "RYDA continues to document and verify violations affecting Rohingya communities, including restrictions on fundamental freedoms and barriers to protection.\n\nThrough public reporting and evidence preservation, the organization works to strengthen accountability efforts and inform advocacy with credible information from the field.",
     date: "2026-03-18",
   },
   {
     id: "post-2",
-    title: "Youth Leadership Workshops Strengthen Community Voice",
+    title: "Youth Leadership Training Expands Community Representation",
     category: "Leadership",
     author: "RYDA Team",
     summary:
-      "Leadership workshops are equipping participants with confidence, critical thinking, and advocacy skills.",
+      "Leadership workshops are helping Rohingya youths, girls, and women strengthen advocacy, organization, and public engagement skills.",
     content:
-      "RYDA's youth leadership activities focus on developing communication, responsibility, and community participation.\n\nBy helping young leaders grow their confidence and civic awareness, the organization is strengthening local capacity and long-term resilience.",
+      "RYDA's leadership activities focus on building confidence, communication, and responsibility among Rohingya youths, girls, and women.\n\nBy creating space for community members to organize and participate in decision-making, the organization is expanding local representation and long-term resilience.",
     date: "2026-03-10",
   },
 ];

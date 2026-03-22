@@ -459,11 +459,38 @@ main > .impact-ribbon,
 }
 
 .program-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .values-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.evidence-section {
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.72), rgba(240, 233, 220, 0.48)),
+    linear-gradient(135deg, rgba(15, 106, 104, 0.06), rgba(197, 106, 45, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.56);
+}
+
+.evidence-heading {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 22px;
+  align-items: end;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.evidence-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
 }
 
 .blog-section {
@@ -957,10 +984,20 @@ main > .impact-ribbon,
   .hero,
   .story-band,
   .site-footer,
-  .program-grid,
-  .values-grid,
   .blog-heading,
   .blog-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .program-grid,
+  .values-grid,
+  .evidence-grid,
+  .journey-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evidence-heading,
+  .journey-heading {
     grid-template-columns: 1fr;
   }
 
@@ -1332,9 +1369,8 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .journey-heading,
   .journey-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hero-highlights,
@@ -1405,7 +1441,10 @@ body {
   }
 
   .journey-heading,
-  .journey-grid {
+  .journey-grid,
+  .program-grid,
+  .values-grid,
+  .evidence-grid {
     grid-template-columns: 1fr;
   }
 
