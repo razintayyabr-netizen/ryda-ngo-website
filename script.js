@@ -1,7 +1,9 @@
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const prefersReducedData = window.matchMedia("(prefers-reduced-data: reduce)").matches;
 const hasFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 const supportsIntersectionObserver = "IntersectionObserver" in window;
-const canTiltCards = hasFinePointer && !prefersReducedMotion;
+const shouldAnimate = !prefersReducedMotion && !prefersReducedData;
+const canTiltCards = hasFinePointer && shouldAnimate;
 
 const revealSelector =
   ".hero-copy, .hero-panel, .card, .program-card, .value-card, .cta-card, .story-band, .impact-item, .journey-card, .contact-card";
@@ -32,7 +34,7 @@ function observeRevealItems(items, withStagger = true) {
   });
 }
 
-if (!prefersReducedMotion && supportsIntersectionObserver) {
+if (shouldAnimate && supportsIntersectionObserver) {
   revealObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -150,7 +152,7 @@ if (supportsIntersectionObserver && sections.length) {
   window.addEventListener("scroll", setActiveNavByScroll, { passive: true });
 }
 
-if (heroOrbs.length && !prefersReducedMotion) {
+if (heroOrbs.length && shouldAnimate) {
   let rafId = 0;
 
   const updateHeroParallax = () => {
@@ -181,7 +183,7 @@ if (heroOrbs.length && !prefersReducedMotion) {
   window.addEventListener("resize", requestParallaxUpdate);
 }
 
-const tiltCardSelector = ".program-card, .value-card, .impact-item, .journey-card, .contact-card, .blog-post";
+const tiltCardSelector = ".impact-item, .program-card, .journey-card, .evidence-card, .contact-card";
 const tiltBoundCards = new WeakSet();
 
 function attachTilt(card) {
@@ -215,12 +217,17 @@ function attachTilt(card) {
     }
   });
 
+  card.addEventListener("pointerenter", () => {
+    card.style.willChange = "transform";
+  });
+
   card.addEventListener("pointerleave", () => {
     if (frame) {
       window.cancelAnimationFrame(frame);
       frame = 0;
     }
     card.style.transform = "";
+    card.style.willChange = "";
   });
 }
 
