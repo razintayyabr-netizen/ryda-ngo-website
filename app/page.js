@@ -5,11 +5,13 @@ import Programs from '@/components/Programs';
 import Newsroom from '@/components/Newsroom';
 import Values from '@/components/Values';
 import Footer from '@/components/Footer';
+import ScrollReveal from '@/components/ScrollReveal';
 import Link from 'next/link';
 
 export default function Home() {
   return (
     <>
+      <ScrollReveal />
       <Header />
       
       <main id="top">

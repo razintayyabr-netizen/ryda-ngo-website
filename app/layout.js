@@ -1,5 +1,5 @@
 import './globals.css';
-
+import CursorTracker from '@/components/CursorTracker';
 export const metadata = {
   metadataBase: new URL('https://ryda-rohingya.org'), // Assuming domain
   title: 'RYDA — Rohingya Youth Development Association',
@@ -40,6 +40,7 @@ export default function RootLayout({ children }) {
         }} />
       </head>
       <body>
+        <CursorTracker />
         {children}
       </body>
     </html>
