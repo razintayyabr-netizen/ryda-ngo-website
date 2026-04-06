@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import StatsBand from '@/components/StatsBand';
+import Partners from '@/components/Partners';
 import Programs from '@/components/Programs';
 import Newsroom from '@/components/Newsroom';
 import Values from '@/components/Values';
@@ -17,6 +18,7 @@ export default function Home() {
       <main id="top">
         <Hero />
         <StatsBand />
+        <Partners />
         
         <section className="section about-section" id="about">
           <div className="section-tag-line">

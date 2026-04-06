@@ -153,6 +153,16 @@ export default function Newsroom() {
       </div>
 
       <div className="newsroom-grid" id="newsroom-grid" aria-live="polite" ref={gridRef}>
+        {loading && [1, 2, 3].map(i => (
+          <div className="news-card skeleton" key={i}>
+            <div className="skeleton-badge"></div>
+            <div className="skeleton-title"></div>
+            <div className="skeleton-line"></div>
+            <div className="skeleton-line"></div>
+            <div className="skeleton-footer"></div>
+          </div>
+        ))}
+
         {!loading && sortedNews.length === 0 && (
           <div className="newsroom-empty"><p>No updates in this category yet.</p></div>
         )}

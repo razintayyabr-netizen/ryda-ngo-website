@@ -1177,3 +1177,83 @@ p { color: var(--text-soft); line-height: 1.8; text-wrap: pretty; font-weight: 4
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* ─── SKELETON LOADERS ────────────────────────────────────── */
+.skeleton {
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  position: relative;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(17, 223, 186, 0.05), 
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-badge { width: 80px; height: 20px; background: rgba(255,255,255,0.05); border-radius: var(--r-pill); margin-bottom: 24px; }
+.skeleton-title { width: 90%; height: 28px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 16px; }
+.skeleton-line { width: 100%; height: 16px; background: rgba(255,255,255,0.03); border-radius: 4px; margin-bottom: 8px; }
+.skeleton-footer { width: 120px; height: 14px; background: rgba(255,255,255,0.03); border-radius: 4px; margin-top: 24px; }
+
+/* ─── PARTNERS BAND ─────────────────────────────────────── */
+.partners-band {
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 40px 0;
+  margin-top: -1px;
+}
+.partners-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+}
+.partners-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.partners-logos {
+  display: flex;
+  align-items: center;
+  gap: 64px;
+}
+.partner-logo {
+  font-size: 1.4rem;
+  font-weight: 900;
+  font-family: "Outfit", sans-serif;
+  color: var(--text-muted);
+  filter: grayscale(1);
+  opacity: 0.4;
+  transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.partner-logo:hover {
+  filter: grayscale(0);
+  opacity: 1;
+  color: var(--gold-neon);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .partners-inner { flex-direction: column; gap: 24px; text-align: center; }
+  .partners-logos { gap: 32px; flex-wrap: wrap; justify-content: center; }
+}
