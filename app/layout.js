@@ -4,7 +4,6 @@ export const metadata = {
   metadataBase: new URL('https://ryda-rohingya.org'), // Assuming domain
   title: 'RYDA — Rohingya Youth Development Association',
   description: 'Rohingya Youth Development Association (RYDA) — Human rights advocacy, documentation, research, leadership, and humanitarian response for Rohingya communities.',
-  themeColor: '#0B4D41',
   openGraph: {
     type: 'website',
     title: 'RYDA — Rohingya Youth Development Association',
@@ -13,6 +12,13 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
   },
+};
+
+export const viewport = {
+  themeColor: '#030907',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {
