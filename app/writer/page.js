@@ -1,22 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RYDA Writer Panel — Publish News &amp; Updates</title>
-  <link rel="icon" type="image/svg+xml" href="assets/ryda-logo.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="writer.css">
-</head>
-<body>
+import './writer.css';
+import Script from 'next/script';
+import * as fs from 'fs';
+import * as path from 'path';
 
+// Since this is a vanilla JS app, we just serve its HTML directly
+// rather than rewriting the thousands of lines of DOM logic.
+export const metadata = {
+  title: 'RYDA Writer Panel — Publish News & Updates',
+};
+
+const rawHTML = `
   <!-- ═══ LOGIN GATE ═══════════════════════════════════════════════════════ -->
   <div class="login-screen" id="login-screen">
     <div class="login-card">
       <div class="login-brand">
-        <img src="assets/ryda-logo.svg" alt="RYDA" width="48" height="48">
+        <img src="/assets/ryda-logo.svg" alt="RYDA" width="48" height="48">
         <div>
           <div class="login-title">RYDA</div>
           <div class="login-sub">Writer Panel</div>
@@ -44,7 +42,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <img src="assets/ryda-logo.svg" alt="" width="36" height="36" aria-hidden="true">
+        <img src="/assets/ryda-logo.svg" alt="" width="36" height="36" aria-hidden="true">
         <div>
           <span class="sb-title">RYDA</span>
           <span class="sb-sub">Writer Panel</span>
@@ -67,7 +65,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <a href="index.html" class="sb-link" target="_blank">
+        <a href="/" class="sb-link" target="_blank">
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M3 10H17M3 5H17M3 15H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           View Website
         </a>
@@ -286,7 +284,13 @@
 
     </main>
   </div>
+`;
 
-  <script src="writer.js" defer></script>
-</body>
-</html>
+export default function WriterPanel() {
+  return (
+    <>
+      <div dangerouslySetInnerHTML={{ __html: rawHTML }} />
+      <Script src="/writer.js" strategy="lazyOnload" />
+    </>
+  );
+}
