@@ -1002,6 +1002,43 @@ p { color: var(--text-soft); line-height: 1.8; text-wrap: pretty; font-weight: 4
   font-family: "JetBrains Mono"; font-size: 0.8rem;
 }
 
+/* ─── HERO ACTIONS & PILLARS ────────────────────────────── */
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+.hero-pillars {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 32px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.pillar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pillar-num {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--neon-teal);
+}
+.pillar-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+.pillar-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--line-light);
+}
+
 /* ─── RESPONSIVE ────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .hero { grid-template-columns: 1fr; }
@@ -1031,6 +1068,11 @@ p { color: var(--text-soft); line-height: 1.8; text-wrap: pretty; font-weight: 4
   .site-header.menu-open .site-nav { display: flex; }
   .menu-toggle { display: flex; }
   .fcf-row { grid-template-columns: 1fr; }
+  
+  .hero-actions { flex-direction: column; width: 100%; }
+  .hero-actions .btn { width: 100%; text-align: center; }
+  .hero-pillars { gap: 24px; }
+  .pillar-divider { display: none; }
 }
 
 /* ─── ADVANCED INTERACTION EFFECTS ──────────────────────── */
