@@ -189,7 +189,7 @@ export default function Newsroom() {
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><rect x="3" y="4" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M6.5 8.5H13.5M6.5 12H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
           View All Articles
         </Link>
-        <Link className="btn btn-outline-light" href="/writer" target="_blank" style={{ marginLeft: 16 }}>
+        <Link className="btn btn-outline" href="/writer" target="_blank" style={{ marginLeft: 16 }}>
           <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg>
           Publish a Story
         </Link>
