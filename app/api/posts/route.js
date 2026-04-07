@@ -8,15 +8,27 @@ let redis;
 function kv() {
   if (!redis) {
     try {
+      // First try standard Upstash/Vercel env vars
       redis = Redis.fromEnv();
     } catch (e) {
-      // Fallback for custom REDIS_URL if env vars are named differently
-      const url = process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL || process.env.KV_REST_API_URL;
-      const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN;
+      // Fallback for manual configuration or REDIS_URL format
+      let url = process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL || process.env.KV_REST_API_URL;
+      let token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN;
+
+      if (url && url.startsWith('redis://')) {
+        try {
+          const parsed = new URL(url);
+          url = `https://${parsed.hostname}`;
+          token = token || parsed.password;
+        } catch (err) {
+          console.error("Malformed REDIS_URL:", err);
+        }
+      }
+
       if (url && token) {
         redis = new Redis({ url, token });
       } else {
-        throw new Error("Redis connection not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.");
+        throw new Error("Redis connection not configured correctly. Check your environment variables.");
       }
     }
   }
