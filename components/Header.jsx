@@ -59,7 +59,7 @@ export default function Header() {
         <nav className="site-nav" id="site-nav" aria-label="Primary navigation">
           <Link href="/#about" onClick={closeMenu}>About</Link>
           <Link href="/#programs" onClick={closeMenu}>Programs</Link>
-          <Link href="/#newsroom" onClick={closeMenu}>Newsroom</Link>
+          <Link href="/newsroom" onClick={closeMenu}>Newsroom</Link>
           <Link href="/#values" onClick={closeMenu}>Values</Link>
           <Link href="/#contact" onClick={closeMenu}>Contact</Link>
           <Link href="/writer" className="nav-writer-link" target="_blank" onClick={closeMenu}>

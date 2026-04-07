@@ -42,12 +42,23 @@ function isAuthorized(req) {
   return valid && token === valid;
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
     const raw = await kv().lrange(POSTS_KEY, 0, -1);
     const posts = raw
       .map((p) => (typeof p === "string" ? JSON.parse(p) : p))
       .filter((p) => p.published !== false);
+
+    // Return single post if ID specified
+    if (id) {
+      const post = posts.find((p) => p.id === id);
+      if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
+      return NextResponse.json({ post }, { status: 200 });
+    }
+
     return NextResponse.json({ posts }, { status: 200 });
   } catch (err) {
     console.error("GET /api/posts error:", err);

@@ -98,6 +98,7 @@ export default function Newsroom() {
     : allNews;
     
   const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const displayedNews = sortedNews.slice(0, 6);
 
   useEffect(() => {
     if (!loading && gridRef.current && "IntersectionObserver" in window) {
@@ -118,7 +119,7 @@ export default function Newsroom() {
 
       return () => obs.disconnect();
     }
-  }, [loading, sortedNews]);
+  }, [loading, displayedNews]);
 
   return (
     <section className="section newsroom-section" id="newsroom">
@@ -127,7 +128,7 @@ export default function Newsroom() {
           <span className="section-tag">Newsroom</span>
           <h2>Latest updates, statements &amp; field reports.</h2>
         </div>
-        <p>Stay informed with RYDA's public statements, human rights bulletins, emergency updates, and campaign announcements.</p>
+        <p>Stay informed with RYDA&apos;s public statements, human rights bulletins, emergency updates, and campaign announcements.</p>
       </div>
 
       <div className="newsroom-tabs" id="newsroom-tabs" role="tablist">
@@ -163,12 +164,12 @@ export default function Newsroom() {
           </div>
         ))}
 
-        {!loading && sortedNews.length === 0 && (
+        {!loading && displayedNews.length === 0 && (
           <div className="newsroom-empty"><p>No updates in this category yet.</p></div>
         )}
         
-        {!loading && sortedNews.map(item => (
-          <article className="news-card reveal" key={item.id}>
+        {!loading && displayedNews.map(item => (
+          <Link href={`/newsroom/${item.id}`} key={item.id} className="news-card reveal" style={{ textDecoration: 'none' }}>
             <span className="news-badge">{item.category}</span>
             <h3>{item.title}</h3>
             <p>{item.summary}</p>
@@ -176,12 +177,19 @@ export default function Newsroom() {
               <span className="news-meta-author">{item.author}</span>
               <span className="news-meta-date">{fmtDate(item.date)}</span>
             </div>
-          </article>
+            <span className="news-card-readmore">
+              Read Article →
+            </span>
+          </Link>
         ))}
       </div>
 
       <div className="newsroom-footer">
-        <Link className="btn btn-outline-light" href="/writer" target="_blank">
+        <Link className="btn btn-primary" href="/newsroom">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><rect x="3" y="4" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M6.5 8.5H13.5M6.5 12H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          View All Articles
+        </Link>
+        <Link className="btn btn-outline-light" href="/writer" target="_blank" style={{ marginLeft: 16 }}>
           <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg>
           Publish a Story
         </Link>

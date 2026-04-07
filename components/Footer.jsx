@@ -83,7 +83,7 @@ export default function Footer() {
           <nav className="footer-nav" aria-label="Footer navigation">
             <Link href="/#about">About</Link>
             <Link href="/#programs">Programs</Link>
-            <Link href="/#newsroom">Newsroom</Link>
+            <Link href="/newsroom">Newsroom</Link>
             <Link href="/#values">Values</Link>
             <Link href="/#contact">Contact</Link>
             <Link href="/writer" target="_blank">Writer Panel</Link>
