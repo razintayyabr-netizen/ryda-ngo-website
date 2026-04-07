@@ -5,7 +5,7 @@ export default function Programs() {
     <section className="section programs-section" id="programs">
       <div className="section-header">
         <span className="section-tag">Programs &amp; Activities</span>
-        <h2>Eight integrated programs linking evidence, advocacy, and emergency response.</h2>
+        <h2>Nine integrated programs linking evidence, advocacy, education, and response.</h2>
       </div>
 
       <div className="programs-grid">
@@ -60,6 +60,13 @@ export default function Programs() {
 
         <article className="prog-card reveal" style={{ '--delay': '0.42s' }}>
           <div className="prog-num">08</div>
+          <div className="prog-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5L14.8 10.17L21 11.09L16.5 15.47L17.56 21.5L12 18.58L6.44 21.5L7.5 15.47L3 11.09L9.2 10.17L12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg></div>
+          <h3>Education &amp; Literacy Development</h3>
+          <p>Supporting community-led learning initiatives, literacy programs, and vocational training to empower Rohingya youth, girls, and children.</p>
+        </article>
+
+        <article className="prog-card reveal" style={{ '--delay': '0.48s' }}>
+          <div className="prog-num">09</div>
           <div className="prog-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5L18.5 7.5V12C18.5 15.88 15.95 19.28 12 20.5C8.05 19.28 5.5 15.88 5.5 12V7.5L12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M8.8 13.2H15.2M12 10V16.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></div>
           <h3>Humanitarian Assistance in Emergencies</h3>
           <p>Food, safe water, temporary shelter, hygiene support, medical care, psychosocial assistance, and essential supplies for the most vulnerable.</p>

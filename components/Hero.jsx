@@ -52,6 +52,11 @@ export default function Hero() {
           <div className="pillar-divider" aria-hidden="true"></div>
           <div className="pillar">
             <span className="pillar-num">04</span>
+            <span className="pillar-label">Education<br/>&amp; Literacy</span>
+          </div>
+          <div className="pillar-divider" aria-hidden="true"></div>
+          <div className="pillar">
+            <span className="pillar-num">05</span>
             <span className="pillar-label">Emergency<br/>Response</span>
           </div>
         </div>
@@ -60,7 +65,7 @@ export default function Hero() {
       <div className="hero-panel" aria-label="Key facts">
         <div className="panel-card">
           <span className="panel-label">Mandate</span>
-          <p>Working exclusively for Rohingya communities through advocacy, documentation, leadership, research, and humanitarian action.</p>
+          <p>Working exclusively for Rohingya communities through advocacy, documentation, leadership, education, research, and humanitarian action.</p>
         </div>
         <div className="panel-card">
           <span className="panel-label">Human Rights Focus</span>

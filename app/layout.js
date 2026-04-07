@@ -3,7 +3,7 @@ import CursorTracker from '@/components/CursorTracker';
 export const metadata = {
   metadataBase: new URL('https://ryda-rohingya.org'), // Assuming domain
   title: 'RYDA — Rohingya Youth Development Association',
-  description: 'Rohingya Youth Development Association (RYDA) — Human rights advocacy, documentation, research, leadership, and humanitarian response for Rohingya communities.',
+  description: 'Rohingya Youth Development Association (RYDA) — Human rights advocacy, documentation, research, leadership, education, and humanitarian response for Rohingya communities.',
   openGraph: {
     type: 'website',
     title: 'RYDA — Rohingya Youth Development Association',
