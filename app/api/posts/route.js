@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
 const POSTS_KEY = "ryda:posts:v2";
+let redis;
 
-// Parse REDIS_URL to get REST credentials for Upstash
 // Use the robust Redis.fromEnv() which is standard for Upstash + Vercel
 function kv() {
   if (!redis) {
@@ -11,8 +11,8 @@ function kv() {
       redis = Redis.fromEnv();
     } catch (e) {
       // Fallback for custom REDIS_URL if env vars are named differently
-      const url = process.env.REDIS_URL || process.env.KV_REST_API_URL;
-      const token = process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN;
+      const url = process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL || process.env.KV_REST_API_URL;
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN;
       if (url && token) {
         redis = new Redis({ url, token });
       } else {
