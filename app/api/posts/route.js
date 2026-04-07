@@ -1,7 +1,40 @@
 import { NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 
 const POSTS_KEY = "ryda:posts:v2";
+
+// Parse REDIS_URL to get REST credentials for Upstash
+function getRedisClient() {
+  const redisUrl = process.env.REDIS_URL || process.env.KV_URL || "";
+  
+  // If KV_REST_API_URL is set (Vercel KV style), use that
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    return new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
+  }
+
+  // Parse redis:// URL to extract host and token for REST API
+  // Format: redis://default:TOKEN@HOST:PORT
+  try {
+    const parsed = new URL(redisUrl);
+    const host = parsed.hostname;
+    const token = parsed.password;
+    return new Redis({
+      url: `https://${host}`,
+      token: token,
+    });
+  } catch {
+    throw new Error("No valid Redis connection configured. Set REDIS_URL or KV_REST_API_URL.");
+  }
+}
+
+let redis;
+function kv() {
+  if (!redis) redis = getRedisClient();
+  return redis;
+}
 
 function isAuthorized(req) {
   const token = req.headers.get("x-writer-token");
@@ -11,12 +44,13 @@ function isAuthorized(req) {
 
 export async function GET() {
   try {
-    const raw = await kv.lrange(POSTS_KEY, 0, -1);
+    const raw = await kv().lrange(POSTS_KEY, 0, -1);
     const posts = raw
       .map((p) => (typeof p === "string" ? JSON.parse(p) : p))
       .filter((p) => p.published !== false);
     return NextResponse.json({ posts }, { status: 200 });
   } catch (err) {
+    console.error("GET /api/posts error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
@@ -45,9 +79,10 @@ export async function POST(req) {
       published: true,
     };
 
-    await kv.lpush(POSTS_KEY, JSON.stringify(post));
+    await kv().lpush(POSTS_KEY, JSON.stringify(post));
     return NextResponse.json({ post }, { status: 201 });
   } catch (err) {
+    console.error("POST /api/posts error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
@@ -60,16 +95,17 @@ export async function DELETE(req) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: "Post ID required." }, { status: 400 });
 
-    const all = await kv.lrange(POSTS_KEY, 0, -1);
+    const all = await kv().lrange(POSTS_KEY, 0, -1);
     const match = all.find((p) => {
       const parsed = typeof p === "string" ? JSON.parse(p) : p;
       return parsed.id === id;
     });
 
     if (!match) return NextResponse.json({ error: "Post not found." }, { status: 404 });
-    await kv.lrem(POSTS_KEY, 0, match);
+    await kv().lrem(POSTS_KEY, 0, match);
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {
+    console.error("DELETE /api/posts error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
@@ -82,7 +118,7 @@ export async function PUT(req) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: "Post ID required." }, { status: 400 });
 
-    const all = await kv.lrange(POSTS_KEY, 0, -1);
+    const all = await kv().lrange(POSTS_KEY, 0, -1);
     const idx = all.findIndex((p) => {
       const parsed = typeof p === "string" ? JSON.parse(p) : p;
       return parsed.id === id;
@@ -94,9 +130,10 @@ export async function PUT(req) {
     const body = await req.json();
     const updated = { ...existing, ...body, id: existing.id, date: existing.date, updated_at: new Date().toISOString() };
 
-    await kv.lset(POSTS_KEY, idx, JSON.stringify(updated));
+    await kv().lset(POSTS_KEY, idx, JSON.stringify(updated));
     return NextResponse.json({ post: updated }, { status: 200 });
   } catch (err) {
+    console.error("PUT /api/posts error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
