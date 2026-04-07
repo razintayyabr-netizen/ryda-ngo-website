@@ -357,6 +357,10 @@ if (postForm) {
     setPublishLoading(true);
     showFeedback("", "");
 
+    // 15-second safety timeout to prevent infinite loading
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
       const res = await fetch(`${API}/posts`, {
         method: "POST",
@@ -365,8 +369,10 @@ if (postForm) {
           "X-Writer-Token": writerToken,
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (res.ok && data.post) {
@@ -376,14 +382,16 @@ if (postForm) {
       } else if (res.status === 401) {
         showFeedback("Session expired. Please log out and log back in.", "error");
       } else {
-        showFeedback(data.error || "Failed to publish. Please try again.", "error");
+        showFeedback(data.error || "Failed to publish. Please check your token.", "error");
       }
     } catch (err) {
-      // If API not reachable (local dev), simulate success
-      if (err.message.includes("fetch") || err.message.includes("Failed")) {
+      clearTimeout(timeoutId);
+      if (err.name === "AbortError") {
+        showFeedback("Request timed out. The server is taking too long to respond.", "error");
+      } else if (err.message.includes("fetch") || err.message.includes("Failed")) {
         showFeedback("⚠ API not reachable. Post would be saved when deployed to Vercel.", "error");
       } else {
-        showFeedback("Network error. Check your connection.", "error");
+        showFeedback("Network error. Check your connection or Redis configuration.", "error");
       }
     }
 

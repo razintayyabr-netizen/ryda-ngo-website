@@ -4,35 +4,22 @@ import { Redis } from '@upstash/redis';
 const POSTS_KEY = "ryda:posts:v2";
 
 // Parse REDIS_URL to get REST credentials for Upstash
-function getRedisClient() {
-  const redisUrl = process.env.REDIS_URL || process.env.KV_URL || "";
-  
-  // If KV_REST_API_URL is set (Vercel KV style), use that
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    return new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-  }
-
-  // Parse redis:// URL to extract host and token for REST API
-  // Format: redis://default:TOKEN@HOST:PORT
-  try {
-    const parsed = new URL(redisUrl);
-    const host = parsed.hostname;
-    const token = parsed.password;
-    return new Redis({
-      url: `https://${host}`,
-      token: token,
-    });
-  } catch {
-    throw new Error("No valid Redis connection configured. Set REDIS_URL or KV_REST_API_URL.");
-  }
-}
-
-let redis;
+// Use the robust Redis.fromEnv() which is standard for Upstash + Vercel
 function kv() {
-  if (!redis) redis = getRedisClient();
+  if (!redis) {
+    try {
+      redis = Redis.fromEnv();
+    } catch (e) {
+      // Fallback for custom REDIS_URL if env vars are named differently
+      const url = process.env.REDIS_URL || process.env.KV_REST_API_URL;
+      const token = process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN;
+      if (url && token) {
+        redis = new Redis({ url, token });
+      } else {
+        throw new Error("Redis connection not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.");
+      }
+    }
+  }
   return redis;
 }
 
@@ -47,22 +34,28 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
+    // Fetch posts from Redis LIST
     const raw = await kv().lrange(POSTS_KEY, 0, -1);
+    
+    // Efficiently find single post if ID provided
+    if (id) {
+      const match = raw.find(p => {
+        const parsed = typeof p === "string" ? JSON.parse(p) : p;
+        return parsed.id === id;
+      });
+      if (!match) return NextResponse.json({ error: "Post not found." }, { status: 404 });
+      const post = typeof match === "string" ? JSON.parse(match) : match;
+      return NextResponse.json({ post }, { status: 200 });
+    }
+
     const posts = raw
       .map((p) => (typeof p === "string" ? JSON.parse(p) : p))
       .filter((p) => p.published !== false);
 
-    // Return single post if ID specified
-    if (id) {
-      const post = posts.find((p) => p.id === id);
-      if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
-      return NextResponse.json({ post }, { status: 200 });
-    }
-
     return NextResponse.json({ posts }, { status: 200 });
   } catch (err) {
     console.error("GET /api/posts error:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
   }
 }
 
