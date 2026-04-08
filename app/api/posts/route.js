@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const POSTS_KEY = "ryda:posts:v2";
 let redisClient = null;
 
