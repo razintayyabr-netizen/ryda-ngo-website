@@ -1,38 +1,23 @@
 import { NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
+import { createClient } from 'redis';
 
 const POSTS_KEY = "ryda:posts:v2";
-let redis;
+let redisClient = null;
 
-// Use the robust Redis.fromEnv() which is standard for Upstash + Vercel
-function kv() {
-  if (!redis) {
-    try {
-      // First try standard Upstash/Vercel env vars
-      redis = Redis.fromEnv();
-    } catch (e) {
-      // Fallback for manual configuration or REDIS_URL format
-      let url = process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL || process.env.KV_REST_API_URL;
-      let token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN;
-
-      if (url && url.startsWith('redis://')) {
-        try {
-          const parsed = new URL(url);
-          url = `https://${parsed.hostname}`;
-          token = token || parsed.password;
-        } catch (err) {
-          console.error("Malformed REDIS_URL:", err);
-        }
-      }
-
-      if (url && token) {
-        redis = new Redis({ url, token });
-      } else {
-        throw new Error("Redis connection not configured correctly. Check your environment variables.");
-      }
+async function getRedis() {
+  if (!redisClient) {
+    // Try different possible env var names for the connection string
+    const url = process.env.REDIS_URL || process.env.STORAGE_URL || process.env.KV_URL;
+    
+    if (!url) {
+      throw new Error("REDIS_URL not found in environment.");
     }
+
+    redisClient = createClient({ url });
+    redisClient.on('error', (err) => console.error('Redis Client Error', err));
+    await redisClient.connect();
   }
-  return redis;
+  return redisClient;
 }
 
 function isAuthorized(req) {
@@ -45,29 +30,27 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const client = await getRedis();
 
-    // Fetch posts from Redis LIST
-    const raw = await kv().lrange(POSTS_KEY, 0, -1);
+    const raw = await client.lRange(POSTS_KEY, 0, -1);
     
-    // Efficiently find single post if ID provided
     if (id) {
       const match = raw.find(p => {
         const parsed = typeof p === "string" ? JSON.parse(p) : p;
         return parsed.id === id;
       });
       if (!match) return NextResponse.json({ error: "Post not found." }, { status: 404 });
-      const post = typeof match === "string" ? JSON.parse(match) : match;
-      return NextResponse.json({ post }, { status: 200 });
+      return NextResponse.json({ post: JSON.parse(match) }, { status: 200 });
     }
 
     const posts = raw
-      .map((p) => (typeof p === "string" ? JSON.parse(p) : p))
+      .map((p) => JSON.parse(p))
       .filter((p) => p.published !== false);
 
     return NextResponse.json({ posts }, { status: 200 });
   } catch (err) {
     console.error("GET /api/posts error:", err);
-    return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
+    return NextResponse.json({ error: "Database connection failed. check REDIS_URL." }, { status: 500 });
   }
 }
 
@@ -95,11 +78,12 @@ export async function POST(req) {
       published: true,
     };
 
-    await kv().lpush(POSTS_KEY, JSON.stringify(post));
+    const client = await getRedis();
+    await client.lPush(POSTS_KEY, JSON.stringify(post));
     return NextResponse.json({ post }, { status: 201 });
   } catch (err) {
     console.error("POST /api/posts error:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return NextResponse.json({ error: "Failed to save post." }, { status: 500 });
   }
 }
 
@@ -111,14 +95,14 @@ export async function DELETE(req) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: "Post ID required." }, { status: 400 });
 
-    const all = await kv().lrange(POSTS_KEY, 0, -1);
-    const match = all.find((p) => {
-      const parsed = typeof p === "string" ? JSON.parse(p) : p;
-      return parsed.id === id;
-    });
+    const client = await getRedis();
+    const all = await client.lRange(POSTS_KEY, 0, -1);
+    
+    const match = all.find((p) => JSON.parse(p).id === id);
 
     if (!match) return NextResponse.json({ error: "Post not found." }, { status: 404 });
-    await kv().lrem(POSTS_KEY, 0, match);
+    
+    await client.lRem(POSTS_KEY, 0, match);
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {
     console.error("DELETE /api/posts error:", err);
@@ -134,19 +118,17 @@ export async function PUT(req) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: "Post ID required." }, { status: 400 });
 
-    const all = await kv().lrange(POSTS_KEY, 0, -1);
-    const idx = all.findIndex((p) => {
-      const parsed = typeof p === "string" ? JSON.parse(p) : p;
-      return parsed.id === id;
-    });
+    const client = await getRedis();
+    const all = await client.lRange(POSTS_KEY, 0, -1);
+    const idx = all.findIndex((p) => JSON.parse(p).id === id);
 
     if (idx === -1) return NextResponse.json({ error: "Post not found." }, { status: 404 });
 
-    const existing = typeof all[idx] === "string" ? JSON.parse(all[idx]) : all[idx];
+    const existing = JSON.parse(all[idx]);
     const body = await req.json();
     const updated = { ...existing, ...body, id: existing.id, date: existing.date, updated_at: new Date().toISOString() };
 
-    await kv().lset(POSTS_KEY, idx, JSON.stringify(updated));
+    await client.lSet(POSTS_KEY, idx, JSON.stringify(updated));
     return NextResponse.json({ post: updated }, { status: 200 });
   } catch (err) {
     console.error("PUT /api/posts error:", err);
