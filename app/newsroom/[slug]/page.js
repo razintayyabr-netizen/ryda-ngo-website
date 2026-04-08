@@ -341,9 +341,9 @@ export default function ArticlePage() {
               <p>{post.summary}</p>
             </div>
 
-            {/* Main content */}
+            {/* Main content - Removed reveal class to fix visibility issue with dynamic loading */}
             <article
-              className="article-body reveal"
+              className="article-body"
               dangerouslySetInnerHTML={{ __html: post.content || '<p><em>Full article content is not available.</em></p>' }}
             />
 

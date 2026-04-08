@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function ScrollReveal() {
+  const pathname = usePathname();
+
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
 
@@ -15,10 +18,25 @@ export default function ScrollReveal() {
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    function observeElements() {
+      document.querySelectorAll('.reveal:not(.is-visible)').forEach(el => observer.observe(el));
+    }
 
-    return () => observer.disconnect();
-  }, []);
+    // Initial check
+    observeElements();
+
+    // Re-check periodically or on DOM changes to handle dynamically loaded content
+    const mutationObserver = new MutationObserver(() => {
+      observeElements();
+    });
+
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [pathname]); // Also re-run on path changes
 
   return null;
 }
