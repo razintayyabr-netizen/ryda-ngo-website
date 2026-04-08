@@ -177,32 +177,41 @@ export default function ArticlePage() {
 
   useEffect(() => {
     async function loadPost() {
-      // Check static first
-      const staticPost = STATIC_NEWS.find(p => p.id === slug);
+      // 1. Check if it's a dynamic post (IDs starting with 'post-')
+      const isDynamic = slug.startsWith('post-');
 
-      if (staticPost) {
-        setPost(staticPost);
-        const related = STATIC_NEWS.filter(p => p.id !== slug).slice(0, 3);
-        setRelatedPosts(related);
-        setLoading(false);
-        return;
+      if (!isDynamic) {
+        // Check static first for standard IDs like 'nr-1'
+        const staticPost = STATIC_NEWS.find(p => p.id === slug);
+        if (staticPost) {
+          setPost(staticPost);
+          const related = STATIC_NEWS.filter(p => p.id !== slug).slice(0, 3);
+          setRelatedPosts(related);
+          setLoading(false);
+          return;
+        }
       }
 
-      // Try API
+      // 2. Try API for dynamic or non-matched static IDs
       try {
         const res = await fetch(`/api/posts?id=${encodeURIComponent(slug)}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.post) {
+          if (data && data.post) {
             setPost(data.post);
-            // Fetch related
-            const allRes = await fetch('/api/posts');
-            if (allRes.ok) {
-              const allData = await allRes.json();
-              const related = (allData.posts || [])
-                .filter(p => p.id !== slug)
-                .slice(0, 3);
-              setRelatedPosts(related.length > 0 ? related : STATIC_NEWS.slice(0, 3));
+            
+            // Try to find related posts from the API
+            try {
+              const allRes = await fetch('/api/posts');
+              if (allRes.ok) {
+                const allData = await allRes.json();
+                const related = (allData.posts || [])
+                  .filter(p => p.id !== slug)
+                  .slice(0, 3);
+                setRelatedPosts(related.length > 0 ? related : STATIC_NEWS.slice(0, 3));
+              }
+            } catch (err) {
+              setRelatedPosts(STATIC_NEWS.slice(0, 3));
             }
           } else {
             setNotFound(true);
@@ -210,7 +219,8 @@ export default function ArticlePage() {
         } else {
           setNotFound(true);
         }
-      } catch {
+      } catch (err) {
+        console.error("Failed to load dynamic post:", err);
         setNotFound(true);
       }
       setLoading(false);
