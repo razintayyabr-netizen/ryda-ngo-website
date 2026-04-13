@@ -7,6 +7,7 @@ import Newsroom from '@/components/Newsroom';
 import Values from '@/components/Values';
 import Footer from '@/components/Footer';
 import ScrollReveal from '@/components/ScrollReveal';
+import BackToTop from '@/components/BackToTop';
 import Link from 'next/link';
 
 export default function Home() {
@@ -81,6 +82,7 @@ export default function Home() {
       </main>
 
       <Footer />
+      <BackToTop />
     </>
   );
 }

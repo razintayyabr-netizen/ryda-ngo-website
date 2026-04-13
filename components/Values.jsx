@@ -8,7 +8,7 @@ export default function Values() {
         <h2>The principles that guide RYDA's advocacy, documentation, and humanitarian action.</h2>
       </div>
 
-      <div className="values-grid">
+      <div className="values-grid" role="list" aria-label="Core values">
         <article className="value-card reveal" style={{ '--delay': '0s' }}>
           <div className="value-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5L18.5 7.5V12C18.5 15.88 15.95 19.28 12 20.5C8.05 19.28 5.5 15.88 5.5 12V7.5L12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg></div>
           <h3>Human Dignity</h3>
