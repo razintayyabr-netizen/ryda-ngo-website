@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const pathname = usePathname();
+
+  const isActive = (href) => {
+    if (href.startsWith('/#')) return false;
+    return pathname === href;
+  };
 
   // Initialize dark mode from localStorage
   useEffect(() => {
@@ -79,16 +86,22 @@ export default function Header() {
         </Link>
 
         <nav className="site-nav" id="site-nav" aria-label="Primary navigation">
-          <Link href="/#about" onClick={closeMenu}>About</Link>
-          <Link href="/#programs" onClick={closeMenu}>Programs</Link>
-          <Link href="/newsroom" onClick={closeMenu}>Newsroom</Link>
-          <Link href="/#values" onClick={closeMenu}>Values</Link>
-          <Link href="/#contact" onClick={closeMenu}>Contact</Link>
+          <Link href="/#about" onClick={closeMenu} className={isActive('/#about') ? 'is-active' : ''}>About</Link>
+          <Link href="/#programs" onClick={closeMenu} className={isActive('/#programs') ? 'is-active' : ''}>Programs</Link>
+          <Link href="/newsroom" onClick={closeMenu} className={isActive('/newsroom') ? 'is-active' : ''}>Newsroom</Link>
+          <Link href="/#values" onClick={closeMenu} className={isActive('/#values') ? 'is-active' : ''}>Values</Link>
+          <Link href="/#contact" onClick={closeMenu} className={isActive('/#contact') ? 'is-active' : ''}>Contact</Link>
           <Link href="/writer" className="nav-writer-link" target="_blank" onClick={closeMenu}>
             <svg viewBox="0 0 20 20" fill="none" width="14" height="14" aria-hidden="true">
               <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
             </svg>
             Write
+          </Link>
+          <Link href="https://donate.stripe.com" className="nav-donate-link" target="_blank" rel="noreferrer" onClick={closeMenu}>
+            <svg viewBox="0 0 20 20" fill="none" width="14" height="14" aria-hidden="true">
+              <path d="M10 5V15M10 15L6.5 11.5M10 15L13.5 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Donate
           </Link>
           <button
             className="dark-mode-toggle"

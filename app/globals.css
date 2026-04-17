@@ -315,13 +315,33 @@ p { color: var(--text-soft); line-height: 1.8; text-wrap: pretty; font-weight: 4
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--neon-teal) !important;
-  color: #FFFFFF !important;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.08) !important;
+  border: 1px solid rgba(37, 99, 235, 0.15) !important;
+  color: var(--neon-teal) !important;
+  box-shadow: none !important;
 }
 .nav-writer-link:hover {
-  background: var(--teal) !important;
-  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.25) !important;
+}
+
+.nav-donate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px !important;
+  background: #F59E0B !important;
+  color: #0F172A !important;
+  border-radius: var(--r-pill);
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  transition: all 0.3s var(--ease);
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.25);
+}
+.nav-donate-link:hover {
+  background: #FBBF24 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
 }
 
 .menu-toggle {
@@ -347,6 +367,54 @@ p { color: var(--text-soft); line-height: 1.8; text-wrap: pretty; font-weight: 4
 .site-header.menu-open .menu-toggle span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
 .site-header.menu-open .menu-toggle span:nth-child(2) { opacity: 0; }
 .site-header.menu-open .menu-toggle span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
+/* Mobile Nav Overlay */
+@media (max-width: 900px) {
+  .site-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.98);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s var(--ease);
+    z-index: -1;
+  }
+
+  .site-header.menu-open .site-nav {
+    opacity: 1;
+    pointer-events: all;
+    z-index: 199;
+  }
+
+  .site-nav a {
+    font-size: 1.2rem;
+    padding: 12px 32px;
+    width: 100%;
+    text-align: center;
+    max-width: 320px;
+  }
+
+  .nav-writer-link, .nav-donate-link {
+    max-width: 280px;
+    justify-content: center;
+  }
+
+  .menu-toggle {
+    display: flex;
+    z-index: 200;
+  }
+
+  .header-inner {
+    position: relative;
+  }
+}
 
 /* ─── HERO ──────────────────────────────────────────────── */
 .hero {
