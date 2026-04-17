@@ -5,6 +5,8 @@ import Partners from '@/components/Partners';
 import Programs from '@/components/Programs';
 import Newsroom from '@/components/Newsroom';
 import Values from '@/components/Values';
+import ImpactStories from '@/components/ImpactStories';
+import DonateBand from '@/components/DonateBand';
 import Footer from '@/components/Footer';
 import ScrollReveal from '@/components/ScrollReveal';
 import BackToTop from '@/components/BackToTop';
@@ -20,6 +22,7 @@ export default function Home() {
         <Hero />
         <StatsBand />
         <Partners />
+        <DonateBand />
         
         <section className="section about-section" id="about">
           <div className="section-tag-line">
@@ -79,6 +82,8 @@ export default function Home() {
         <Programs />
         <Newsroom />
         <Values />
+        <ImpactStories />
+        <DonateBand />
       </main>
 
       <Footer />
