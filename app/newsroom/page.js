@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-import ScrollReveal from '@/components/ScrollReveal';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, orderBy } from 'firebase/firestore';
 
@@ -119,12 +118,20 @@ export default function NewsroomPage() {
         }));
         setAllNews([...apiPosts, ...STATIC_NEWS]);
       } catch (err) {
-        // Fallback to static
+        // Firebase failed, use static only
       } finally {
         setLoading(false);
       }
     }
+
+    // Set a safety timeout — show static content after 5s even if Firebase is slow
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     loadNews();
+
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   const filteredNews = allNews
@@ -161,7 +168,6 @@ export default function NewsroomPage() {
 
   return (
     <>
-      <ScrollReveal />
       <main>
         {/* Hero Banner */}
         <section className="nr-hero">

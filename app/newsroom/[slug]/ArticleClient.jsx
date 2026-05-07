@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-import ScrollReveal from '@/components/ScrollReveal';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore';
 
@@ -177,13 +176,20 @@ export default function ArticlePage() {
       setLoading(false);
     }
 
+    // Safety timeout — show not found after 8s if Firestore hangs
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+      setNotFound(true);
+    }, 8000);
+
     loadPost();
+
+    return () => clearTimeout(safetyTimer);
   }, [slug]);
 
   if (loading) {
     return (
       <>
-        <ScrollReveal />
         <div className="article-loading">
           <div className="article-loading-spinner"></div>
           <p>Loading article…</p>
@@ -196,7 +202,6 @@ export default function ArticlePage() {
   if (notFound || !post) {
     return (
       <>
-        <ScrollReveal />
         <div className="article-loading">
           <h2>Article Not Found</h2>
           <p>The article you're looking for doesn't exist or has been removed.</p>
@@ -209,7 +214,6 @@ export default function ArticlePage() {
 
   return (
     <div className="article-page">
-      <ScrollReveal />
       
       {/* Article Header */}
       <section className="article-hero">
