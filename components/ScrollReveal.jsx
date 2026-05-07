@@ -1,13 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 
-export default function ScrollReveal() {
-  const pathname = usePathname();
+export default function ScrollReveal({ children, delay = 0, className = '' }) {
+  const ref = useRef(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    if (typeof window === 'undefined' || !ref.current) return;
+    if (!('IntersectionObserver' in window)) {
+      ref.current.style.opacity = '1';
+      ref.current.style.transform = 'translateY(0)';
+      return;
+    }
+
+    const el = ref.current;
+    el.style.transitionDelay = `${delay}ms`;
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -18,25 +25,13 @@ export default function ScrollReveal() {
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-    function observeElements() {
-      document.querySelectorAll('.reveal:not(.is-visible)').forEach(el => observer.observe(el));
-    }
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [delay]);
 
-    // Initial check
-    observeElements();
-
-    // Re-check periodically or on DOM changes to handle dynamically loaded content
-    const mutationObserver = new MutationObserver(() => {
-      observeElements();
-    });
-
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, [pathname]); // Also re-run on path changes
-
-  return null;
+  return (
+    <div ref={ref} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
 }

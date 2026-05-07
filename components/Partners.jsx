@@ -10,17 +10,17 @@ export default function Partners() {
   ];
 
   return (
-      <section className="partners-band reveal" aria-label="Partner organizations">
-      <div className="partners-inner">
-        <span className="partners-label">Working in collaboration with</span>
-        <div className="partners-logos">
+      <div className="is-partners" aria-label="Partner organizations">
+      <div className="is-partners-inner">
+        <span className="is-partners-label">Working in collaboration with</span>
+        <div className="is-partners-logos">
           {partners.map((p, i) => (
-            <div className="partner-logo" key={i} title={p.name} role="img" aria-label={p.name}>
+            <div className="is-partner-item" key={i} title={p.name} role="img" aria-label={p.name}>
               <span>{p.logo}</span>
             </div>
           ))}
         </div>
       </div>
-    </section>
+    </div>
   );
 }

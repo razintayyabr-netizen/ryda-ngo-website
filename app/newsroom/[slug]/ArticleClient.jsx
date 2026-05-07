@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 import ScrollReveal from '@/components/ScrollReveal';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBieGnfxoFqHLLZHz-MnHWRzl1eBarD7yo",
@@ -94,165 +95,213 @@ function fmtDate(iso) {
   }
 }
 
-export default function NewsroomPage() {
-  const [allNews, setAllNews] = useState(STATIC_NEWS);
-  const [activeFilter, setActiveFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const gridRef = useRef(null);
+function ShareButtons({ title, url }) {
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    async function loadNews() {
-      try {
-        const db = getDb();
-        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(q);
-        const apiPosts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          title: doc.data().title,
-          category: doc.data().category,
-          author: doc.data().author,
-          summary: doc.data().summary,
-          date: doc.data().createdAt,
-          featured_image: doc.data().featured_image,
-          tags: doc.data().tags || [],
-        }));
-        setAllNews([...apiPosts, ...STATIC_NEWS]);
-      } catch (err) {
-        // Fallback to static
-      } finally {
-        setLoading(false);
-      }
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      const input = document.createElement('input');
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
     }
-    loadNews();
-  }, []);
-
-  const filteredNews = allNews
-    .filter(n => !activeFilter || n.category === activeFilter)
-    .filter(n => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return n.title.toLowerCase().includes(q) || n.summary.toLowerCase().includes(q) || n.category.toLowerCase().includes(q);
-    });
-
-  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  useEffect(() => {
-    if (!loading && gridRef.current && "IntersectionObserver" in window) {
-      const obs = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(e => {
-            if (e.isIntersecting) {
-              e.target.classList.add("is-visible");
-              obs.unobserve(e.target);
-            }
-          });
-        },
-        { threshold: 0.05 }
-      );
-      const cards = gridRef.current.querySelectorAll('.nr-card');
-      cards.forEach(c => obs.observe(c));
-      return () => obs.disconnect();
-    }
-  }, [loading, sortedNews]);
-
-  const categories = ['', 'Article', 'Statement', 'Report', 'Emergency', 'Advocacy', 'Leadership', 'Research', 'Documentation', 'Humanitarian', 'Training', 'Field Report', 'Media Coverage', 'Campaign'];
-  const categoryLabels = { '': 'All', 'Article': 'Articles', 'Statement': 'Statements', 'Report': 'Reports', 'Emergency': 'Emergency', 'Advocacy': 'Advocacy', 'Leadership': 'Leadership', 'Research': 'Research', 'Documentation': 'Documentation', 'Humanitarian': 'Humanitarian', 'Training': 'Training', 'Field Report': 'Field Reports', 'Media Coverage': 'Media', 'Campaign': 'Campaigns' };
+  };
 
   return (
-    <>
-      <ScrollReveal />
-      <main>
-        {/* Hero Banner */}
-        <section className="nr-hero">
-          <div className="nr-hero-bg">
-            <div className="nr-hero-glow nr-hero-glow-1"></div>
-            <div className="nr-hero-glow nr-hero-glow-2"></div>
-            <div className="hero-lines"></div>
-          </div>
-          <div className="nr-hero-content reveal">
-            <span className="section-tag">Newsroom</span>
-            <h1>Updates, Statements &amp; Reports</h1>
-            <p>Stay informed with RYDA&apos;s public statements, human rights documentation, emergency updates, field reports, and campaign announcements.</p>
-          </div>
-        </section>
+    <div className="share-section">
+      <span className="share-label">Share:</span>
+      <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer" className="share-btn share-twitter" aria-label="Share on Twitter">𝕏</a>
+      <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer" className="share-btn share-facebook" aria-label="Share on Facebook">f</a>
+      <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer" className="share-btn share-linkedin" aria-label="Share on LinkedIn">in</a>
+      <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(title + ' — ' + url)}`} target="_blank" rel="noreferrer" className="share-btn share-whatsapp" aria-label="Share on WhatsApp">WA</a>
+      <button onClick={handleCopy} className="share-btn share-copy" aria-label="Copy link">{copied ? '✓' : 'Copy'}</button>
+    </div>
+  );
+}
 
-        {/* Filters + Search */}
-        <section className="nr-controls">
-          <div className="nr-controls-inner">
-            <div className="nr-tabs" role="tablist">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  className={`tab ${activeFilter === cat ? 'is-active' : ''}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeFilter === cat}
-                  onClick={() => setActiveFilter(cat)}
-                >
-                  {categoryLabels[cat]}
-                </button>
+export default function ArticlePage() {
+  const params = useParams();
+  const slug = params?.slug;
+  const [post, setPost] = useState(null);
+  const [relatedPosts, setRelatedPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [articleUrl, setArticleUrl] = useState('');
+
+  useEffect(() => { setArticleUrl(window.location.href); }, []);
+
+  useEffect(() => {
+    if (!slug) return;
+
+    async function loadPost() {
+      // 1. Check static fallback first
+      const staticPost = STATIC_NEWS.find(p => p.id === slug);
+      if (staticPost) {
+        setPost(staticPost);
+        setRelatedPosts(STATIC_NEWS.filter(p => p.id !== slug).slice(0, 3));
+        setLoading(false);
+        return;
+      }
+
+      // 2. Try Firestore
+      try {
+        const db = getDb();
+        const docRef = doc(db, 'posts', slug);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const postData = { id: snap.id, ...snap.data(), date: snap.data().createdAt };
+          setPost(postData);
+          // Get related
+          const allQ = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+          const allSnap = await getDocs(allQ);
+          const related = allSnap.docs
+            .filter(d => d.id !== slug)
+            .slice(0, 3)
+            .map(d => ({ id: d.id, ...d.data(), date: d.data().createdAt }));
+          setRelatedPosts(related.length > 0 ? related : STATIC_NEWS.slice(0, 3));
+        } else {
+          setNotFound(true);
+        }
+      } catch (err) {
+        console.error('Failed to load post:', err);
+        setNotFound(true);
+      }
+      setLoading(false);
+    }
+
+    loadPost();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <>
+        <ScrollReveal />
+        <div className="article-loading">
+          <div className="article-loading-spinner"></div>
+          <p>Loading article…</p>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  if (notFound || !post) {
+    return (
+      <>
+        <ScrollReveal />
+        <div className="article-loading">
+          <h2>Article Not Found</h2>
+          <p>The article you're looking for doesn't exist or has been removed.</p>
+          <Link href="/newsroom" className="btn btn-primary">← Back to Newsroom</Link>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  return (
+    <div className="article-page">
+      <ScrollReveal />
+      
+      {/* Article Header */}
+      <section className="article-hero">
+        <div className="article-container">
+          <div className="article-breadcrumb">
+            <Link href="/">Home</Link>
+            <span>/</span>
+            <Link href="/newsroom">
+              Newsroom
+            </Link>
+            <div className="article-meta">
+              <span className="article-category-badge">{post.category}</span>
+              <div className="article-meta-divider"></div>
+              <div className="article-meta-item">
+                <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><circle cx="10" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M3 18C3 14.13 6.13 11 10 11C13.87 11 17 14.13 17 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <span>{post.author}</span>
+              </div>
+              <div className="article-meta-divider"></div>
+              <div className="article-meta-item">
+                <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><rect x="3" y="4" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M3 8H17M7 2V5M13 2V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <span>{fmtDate(post.date)}</span>
+              </div>
+              {post.tags && post.tags.length > 0 && (
+                <>
+                  <div className="article-meta-divider"></div>
+                  <div className="article-tags">
+                    {post.tags.map(t => <span key={t} className="article-tag">#{t}</span>)}
+                  </div>
+                </>
+              )}
+            </div>
+            <h1 className="article-title">{post.title}</h1>
+          </div>
+        </div>
+      </section>
+
+      {/* Article Content */}
+      <section className="article-content-section">
+        <div className="article-container">
+          {post.featured_image && (
+            <div className="article-featured-image">
+              <img src={post.featured_image} alt={post.title} />
+            </div>
+          )}
+          <div className="article-summary">
+            <div className="article-summary-icon">
+              <svg viewBox="0 0 20 20" fill="none" width="20" height="20"><path d="M10 3L12 8.5H18L13 12L15 17.5L10 14L5 17.5L7 12L2 8.5H8L10 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+            </div>
+            <p>{post.summary}</p>
+          </div>
+          <article
+            className="article-body"
+            dangerouslySetInnerHTML={{ __html: post.content || '<p><em>Full article content is not available.</em></p>' }}
+          />
+          <ShareButtons title={post.title} url={articleUrl} />
+        </div>
+      </section>
+
+      {/* Related Posts */}
+      {relatedPosts.length > 0 && (
+        <section className="related-section">
+          <div className="related-inner">
+            <div className="related-header">
+              <span className="section-tag">More from RYDA</span>
+              <h2>Related Articles</h2>
+            </div>
+            <div className="related-grid">
+              {relatedPosts.map(item => (
+                <Link href={`/newsroom/${item.id}`} key={item.id} className="nr-card">
+                  <div className="nr-card-body">
+                    <span className="news-badge">{item.category}</span>
+                    <h3>{item.title}</h3>
+                    <p>{item.summary}</p>
+                    <div className="nr-card-footer">
+                      <span className="nr-card-author">{item.author}</span>
+                      <span className="nr-card-date">{fmtDate(item.date)}</span>
+                    </div>
+                    <span className="nr-card-read">
+                      Read Article →
+                    </span>
+                  </div>
+                </Link>
               ))}
             </div>
-            <div className="nr-search-wrap">
-              <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M14 14L18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              <input
-                className="nr-search"
-                type="search"
-                placeholder="Search articles…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="related-cta">
+              <Link href="/newsroom" className="is-btn-secondary">View All Articles →</Link>
             </div>
           </div>
         </section>
+      )}
 
-        {/* Posts Grid */}
-        <section className="nr-listing">
-          <div className="nr-grid" ref={gridRef}>
-            {loading && [1, 2, 3, 4, 5, 6].map(i => (
-              <div className="nr-card skeleton" key={i}>
-                <div className="skeleton-badge"></div>
-                <div className="skeleton-title"></div>
-                <div className="skeleton-line"></div>
-                <div className="skeleton-line"></div>
-                <div className="skeleton-footer"></div>
-              </div>
-            ))}
-
-            {!loading && sortedNews.length === 0 && (
-              <div className="nr-empty">
-                <svg viewBox="0 0 24 24" fill="none" width="48" height="48"><path d="M9 12H15M12 9V15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/></svg>
-                <p>No articles found matching your criteria.</p>
-              </div>
-            )}
-
-            {!loading && sortedNews.map((item, idx) => (
-              <Link href={`/newsroom/${item.id}`} key={item.id} className="nr-card reveal" style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
-                {item.featured_image && (
-                  <div className="nr-card-image">
-                    <img src={item.featured_image} alt="" loading="lazy" />
-                  </div>
-                )}
-                <div className="nr-card-body">
-                  <span className="news-badge">{item.category}</span>
-                  <h3>{item.title}</h3>
-                  <p>{item.summary}</p>
-                  <div className="nr-card-footer">
-                    <span className="nr-card-author">{item.author}</span>
-                    <span className="nr-card-date">{fmtDate(item.date)}</span>
-                  </div>
-                  <span className="nr-card-read">
-                    Read Article
-                    <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 10H16M12 6L16 10L12 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </main>
       <Footer />
-    </>
+    </div>
   );
 }

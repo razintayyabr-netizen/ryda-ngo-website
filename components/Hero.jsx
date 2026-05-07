@@ -1,81 +1,83 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
-export default function Hero() {
+function useCountUp(target, duration = 1800, start = false) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let startTime = null;
+    const tick = (now) => {
+      if (!startTime) startTime = now;
+      const p = Math.min((now - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setCount(Math.floor(ease * target));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [start, target, duration]);
+  return count;
+}
+
+function StatItem({ value, suffix, label, active }) {
+  const count = useCountUp(value, 2000, active);
   return (
-    <section className="hero" aria-label="RYDA introduction">
-      <div className="hero-bg" aria-hidden="true">
-        <div className="hero-grain"></div>
-        <div className="hero-glow hero-glow-1"></div>
-        <div className="hero-glow hero-glow-2"></div>
-        <div className="hero-lines"></div>
-      </div>
+    <div className="is-stat-card">
+      <h3>{active ? count : 0}{suffix}</h3>
+      <p>{label}</p>
+    </div>
+  );
+}
 
-      <div className="hero-content">
-        <div className="hero-eyebrow">
-          <img src="/assets/ryda-logo.svg" alt="" width="28" height="28" aria-hidden="true" />
-          <span>Est. Cox's Bazar · Bangladesh</span>
-        </div>
+export default function Hero() {
+  const [countersActive, setCountersActive] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const statsRef = useRef(null);
 
-        <h1 className="hero-headline">
-          <span className="headline-thin">Justice for the</span>
-          <span className="headline-bold">Rohingya</span>
-          <span className="headline-italic">through evidence,</span>
-          <span className="headline-bold headline-accent">advocacy &amp; action.</span>
-        </h1>
+  useEffect(() => {
+    setLoaded(true);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) { setCountersActive(true); return; }
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setCountersActive(true); }, { threshold: 0.3 });
+    if (statsRef.current) obs.observe(statsRef.current);
+    return () => obs.disconnect();
+  }, []);
 
-        <p className="hero-lead">
-          RYDA is a Rohingya-led civil society organization documenting
-          violations, amplifying refugee voices, building youth leaders, and delivering
-          humanitarian support where it matters most.
-        </p>
-
-        <div className="hero-actions">
-          <Link className="btn btn-primary" href="/#contact">Partner With RYDA</Link>
-          <Link className="btn btn-ghost" href="/#programs">Explore Programs</Link>
-        </div>
-
-        <div className="hero-pillars">
-          <div className="pillar">
-            <span className="pillar-num">01</span>
-            <span className="pillar-label">Documentation<br/>&amp; Reporting</span>
-          </div>
-          <div className="pillar-divider" aria-hidden="true"></div>
-          <div className="pillar">
-            <span className="pillar-num">02</span>
-            <span className="pillar-label">International<br/>Advocacy</span>
-          </div>
-          <div className="pillar-divider" aria-hidden="true"></div>
-          <div className="pillar">
-            <span className="pillar-num">03</span>
-            <span className="pillar-label">Youth<br/>Leadership</span>
-          </div>
-          <div className="pillar-divider" aria-hidden="true"></div>
-          <div className="pillar">
-            <span className="pillar-num">04</span>
-            <span className="pillar-label">Education<br/>&amp; Literacy</span>
-          </div>
-          <div className="pillar-divider" aria-hidden="true"></div>
-          <div className="pillar">
-            <span className="pillar-num">05</span>
-            <span className="pillar-label">Emergency<br/>Response</span>
+  return (
+    <>
+      {/* HERO */}
+      <section className="is-hero">
+        <div className="is-hero-overlay"></div>
+        <div className="is-hero-bg"></div>
+        <div className="container is-hero-container">
+          <div className="is-hero-content">
+            <span className="is-hero-badge">Rohingya-Led · Cox's Bazar, Bangladesh</span>
+            <h1 className="animate-fade-in">
+              Justice for the Rohingya.<br />Through Evidence &amp; Action.
+            </h1>
+            <p className="animate-fade-in delay-100">
+              RYDA is a Rohingya-led civil society organization documenting human rights violations,
+              amplifying refugee voices, building youth leaders, and delivering humanitarian support
+              where it matters most.
+            </p>
+            <div className="is-hero-actions animate-fade-in delay-200">
+              <Link className="is-btn-primary" href="/#contact">Partner With Us</Link>
+              <Link className="is-btn-secondary" href="/#programs">Our Programs</Link>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="hero-panel" aria-label="Key facts">
-        <div className="panel-card">
-          <span className="panel-label">Mandate</span>
-          <p>Working exclusively for Rohingya communities through advocacy, documentation, leadership, education, research, and humanitarian action.</p>
+      {/* STATS */}
+      <section className="is-stats" ref={statsRef}>
+        <div className="container is-stats-grid">
+          <StatItem value={50} suffix="+" label="Partner Organizations" active={countersActive} />
+          <StatItem value={1200} suffix="+" label="People Directly Reached" active={countersActive} />
+          <StatItem value={8} suffix="" label="Active Programs" active={countersActive} />
+          <StatItem value={100} suffix="%" label="Rohingya-Led Team" active={countersActive} />
         </div>
-        <div className="panel-card">
-          <span className="panel-label">Human Rights Focus</span>
-          <p>Tracking killings, arbitrary detention, sexual &amp; gender-based violence, and restrictions on expression, association, and movement.</p>
-        </div>
-        <div className="panel-card panel-card-accent">
-          <span className="panel-label">Reach</span>
-          <p>Local, national &amp; international representation — strengthening protection at every level.</p>
-        </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

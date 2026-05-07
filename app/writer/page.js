@@ -10,6 +10,9 @@ export const metadata = {
 };
 
 const rawHTML = `
+  <!-- Firebase SDKs (Compat for vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <!-- ═══ LOGIN GATE ═══════════════════════════════════════════════════════ -->
   <div class="login-screen" id="login-screen">
     <div class="login-card">
@@ -101,6 +104,7 @@ const rawHTML = `
               <div class="field-group">
                 <label for="f-category">Category <span class="req">*</span></label>
                 <select id="f-category" name="category">
+                  <option value="Article">Article</option>
                   <option value="Statement">Statement</option>
                   <option value="Report">Report</option>
                   <option value="Emergency">Emergency</option>
@@ -108,7 +112,12 @@ const rawHTML = `
                   <option value="Leadership">Leadership</option>
                   <option value="Research">Research</option>
                   <option value="Documentation">Documentation</option>
-                  <option value="General">General</option>
+                  <option value="Humanitarian">Humanitarian</option>
+                  <option value="Training">Training</option>
+                  <option value="Field Report">Field Report</option>
+                  <option value="Media Coverage">Media Coverage</option>
+                  <option value="Campaign">Campaign</option>
+                  <option value="Article">Article</option>
                 </select>
               </div>
               <div class="field-group">
@@ -152,10 +161,22 @@ const rawHTML = `
             </div>
 
             <div class="field-group">
-              <label for="f-image">Featured Image URL</label>
-              <input id="f-image" name="featured_image" type="url"
-                placeholder="https://example.com/photo.jpg (optional)">
-              <span class="field-hint">Direct image URL. Leave blank if no image. Use an image host like Imgur or Cloudinary.</span>
+              <label for="f-image">Featured Image</label>
+              <div class="image-upload-row" id="image-upload-row">
+                <input id="f-image" name="featured_image" type="url"
+                  placeholder="https://example.com/photo.jpg">
+                <span class="upload-or">or</span>
+                <label class="btn btn-outline btn-sm upload-file-btn" for="f-image-file">
+                  <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M3 15V17H17V15M10 3V12M10 12L7 9M10 12L13 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Upload
+                </label>
+                <input id="f-image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden-file-input">
+              </div>
+              <div class="upload-status" id="upload-status" hidden></div>
+              <div class="upload-preview" id="upload-preview" hidden>
+                <img id="upload-preview-img" src="" alt="Preview">
+              </div>
+              <span class="field-hint">Paste an image URL, or click Upload to use Imgur (max 5MB, JPG/PNG/WebP/GIF).</span>
             </div>
 
             <div class="field-group">
@@ -290,7 +311,7 @@ export default function WriterPanel() {
   return (
     <>
       <div dangerouslySetInnerHTML={{ __html: rawHTML }} />
-      <Script src="/writer.js" strategy="lazyOnload" />
+      <script src="/writer.js"></script>
     </>
   );
 }

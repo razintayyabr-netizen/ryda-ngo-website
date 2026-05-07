@@ -1,4 +1,5 @@
 import './globals.css';
+import Header from '@/components/Header';
 import CursorTracker from '@/components/CursorTracker';
 
 export const metadata = {
@@ -100,6 +101,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <CursorTracker />
+        <Header />
         {children}
       </body>
     </html>

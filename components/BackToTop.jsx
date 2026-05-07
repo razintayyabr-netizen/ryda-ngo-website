@@ -29,7 +29,7 @@ export default function BackToTop() {
         width: '52px',
         height: '52px',
         borderRadius: '16px',
-        border: '1px solid rgba(37, 99, 235, 0.2)',
+        border: '1px solid rgba(27, 94, 32, 0.2)',
         background: 'rgba(255, 255, 255, 0.9)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
@@ -45,7 +45,7 @@ export default function BackToTop() {
         pointerEvents: visible ? 'auto' : 'none',
       }}
     >
-      <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style={{ color: '#2563EB' }}>
+      <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style={{ color: '#1b5e20' }}>
         <path d="M12 4.5L5 11.5M12 4.5L19 11.5M12 4V19.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     </button>

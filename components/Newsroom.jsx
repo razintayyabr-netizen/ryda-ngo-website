@@ -66,9 +66,14 @@ export default function Newsroom() {
   const [allNews, setAllNews] = useState(STATIC_NEWS);
   const [activeFilter, setActiveFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isWriter, setIsWriter] = useState(false);
   const gridRef = useRef(null);
 
   useEffect(() => {
+    // Check if writer is logged in
+    const token = sessionStorage.getItem('ryda_writer_token');
+    setIsWriter(!!token);
+
     async function loadNews() {
       try {
         const res = await fetch('/api/posts');
@@ -81,6 +86,7 @@ export default function Newsroom() {
             author: p.author,
             summary: p.summary,
             date: p.date,
+            featured_image: p.featured_image,
           }));
           setAllNews([...apiPosts, ...STATIC_NEWS]);
         }
@@ -93,10 +99,10 @@ export default function Newsroom() {
     loadNews();
   }, []);
 
-  const filteredNews = activeFilter 
-    ? allNews.filter(n => n.category === activeFilter) 
+  const filteredNews = activeFilter
+    ? allNews.filter(n => n.category === activeFilter)
     : allNews;
-    
+
   const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date) - new Date(a.date));
   const displayedNews = sortedNews.slice(0, 6);
 
@@ -113,7 +119,7 @@ export default function Newsroom() {
         },
         { threshold: 0.08 }
       );
-      
+
       const cards = gridRef.current.querySelectorAll('.news-card');
       cards.forEach(c => obs.observe(c));
 
@@ -140,11 +146,11 @@ export default function Newsroom() {
           { label: 'Advocacy', filter: 'Advocacy' },
           { label: 'Leadership', filter: 'Leadership' },
         ].map(tab => (
-          <button 
+          <button
             key={tab.label}
-            className={`tab ${activeFilter === tab.filter ? 'is-active' : ''}`} 
-            type="button" 
-            role="tab" 
+            className={`tab ${activeFilter === tab.filter ? 'is-active' : ''}`}
+            type="button"
+            role="tab"
             aria-selected={activeFilter === tab.filter}
             onClick={() => setActiveFilter(tab.filter)}
           >
@@ -167,20 +173,35 @@ export default function Newsroom() {
         {!loading && displayedNews.length === 0 && (
           <div className="newsroom-empty"><p>No updates in this category yet.</p></div>
         )}
-        
+
         {!loading && displayedNews.map(item => (
-          <Link href={`/newsroom/${item.id}`} key={item.id} className="news-card reveal" style={{ textDecoration: 'none' }}>
-            <span className="news-badge">{item.category}</span>
-            <h3>{item.title}</h3>
-            <p>{item.summary}</p>
-            <div className="news-meta">
-              <span className="news-meta-author">{item.author}</span>
-              <span className="news-meta-date">{fmtDate(item.date)}</span>
-            </div>
-            <span className="news-card-readmore">
-              Read Article →
-            </span>
-          </Link>
+          <div key={item.id} className="news-card reveal">
+            {isWriter && (
+              <div className="news-card-actions">
+                <Link href={`/writer?edit=${encodeURIComponent(item.id)}`} className="news-edit-btn">
+                  <svg viewBox="0 0 20 20" fill="none" width="13" height="13"><path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+                  Edit
+                </Link>
+              </div>
+            )}
+            <Link href={`/newsroom/${item.id}`} className="news-card-link" style={{ textDecoration: 'none' }}>
+              {item.featured_image && (
+                <div className="news-card-image-wrap">
+                  <img src={item.featured_image} alt={item.title} loading="lazy" />
+                </div>
+              )}
+              <span className="news-badge">{item.category}</span>
+              <h3>{item.title}</h3>
+              <p>{item.summary}</p>
+              <div className="news-meta">
+                <span className="news-meta-author">{item.author}</span>
+                <span className="news-meta-date">{fmtDate(item.date)}</span>
+              </div>
+              <span className="news-card-readmore">
+                Read Article →
+              </span>
+            </Link>
+          </div>
         ))}
       </div>
 

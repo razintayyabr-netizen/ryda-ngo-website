@@ -1,21 +1,30 @@
 /* ============================================================
-   RYDA — Writer Panel Script v2.0
-   - Token authentication via /api/auth
+   RYDA — Writer Panel Script v3.0 (Firebase)
+   - Auth via token check
+   - Posts stored in Firestore
+   - Images uploaded to Firebase Storage
    - Rich text editor with toolbar
-   - Post publishing via /api/posts
    - Post management (list, delete)
-   - Preview mode
-   - Character counting
-   - Draft persistence (localStorage)
    ============================================================ */
 "use strict";
 
-const API = "/api";
+// Firebase config
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBieGnfxoFqHLLZHz-MnHWRzl1eBarD7yo",
+  authDomain: "ryda-68015.firebaseapp.com",
+  projectId: "ryda-68015",
+  storageBucket: "ryda-68015.firebasestorage.app",
+  messagingSenderId: "845909692038",
+  appId: "1:845909692038:web:94c8c4a51a737e5abacb07"
+};
+
 const TOKEN_KEY = "ryda_writer_token";
 const DRAFT_KEY = "ryda_writer_draft";
+const VALID_TOKEN = "RYDA5555";
 
 // ─── State ────────────────────────────────────────────────
 let writerToken = sessionStorage.getItem(TOKEN_KEY) || "";
+let firebaseReady = false;
 let allPosts = [];
 let currentPanel = "new-post";
 let isEditorPreview = false;
@@ -47,6 +56,24 @@ const postPreview     = document.getElementById("post-preview");
 const postsList       = document.getElementById("posts-list");
 const postsSearch     = document.getElementById("posts-search");
 const refreshPostsBtn = document.getElementById("refresh-posts");
+const imgFileInput    = document.getElementById("f-image-file");
+const imgUrlInput     = document.getElementById("f-image");
+const uploadStatus    = document.getElementById("upload-status");
+const uploadPreview   = document.getElementById("upload-preview");
+const uploadPreviewImg = document.getElementById("upload-preview-img");
+
+// ─── Firebase Init ────────────────────────────────────────
+let firestore;
+
+function initFirebase() {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    firestore = firebase.firestore();
+    firebaseReady = true;
+  } catch(e) {
+    console.error("Firebase init error:", e);
+  }
+}
 
 // ─── Auth ─────────────────────────────────────────────────
 function showDashboard() {
@@ -63,18 +90,8 @@ function showLogin() {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 
-async function verifyToken(token) {
-  try {
-    const res = await fetch(`${API}/auth`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    return res.ok;
-  } catch {
-    // If API not available (local dev without backend), accept any non-empty token
-    return token.length >= 4;
-  }
+function verifyToken(token) {
+  return token === VALID_TOKEN;
 }
 
 if (loginForm) {
@@ -88,7 +105,7 @@ if (loginForm) {
     loginSpinner.hidden = false;
     loginError.hidden = true;
 
-    const ok = await verifyToken(token);
+    const ok = verifyToken(token);
 
     loginBtn.disabled = false;
     loginBtnText.hidden = false;
@@ -97,6 +114,7 @@ if (loginForm) {
     if (ok) {
       writerToken = token;
       sessionStorage.setItem(TOKEN_KEY, token);
+      initFirebase();
       showDashboard();
     } else {
       loginError.hidden = false;
@@ -111,12 +129,10 @@ if (logoutBtn) {
   });
 }
 
-// Auto-login if token in session
-if (writerToken) {
-  verifyToken(writerToken).then(ok => {
-    if (ok) showDashboard();
-    else showLogin();
-  });
+// Auto-login
+if (writerToken && verifyToken(writerToken)) {
+  initFirebase();
+  showDashboard();
 }
 
 // ─── Panel switching ──────────────────────────────────────
@@ -136,7 +152,7 @@ const toolBtns = document.querySelectorAll(".tool-btn");
 
 toolBtns.forEach(btn => {
   btn.addEventListener("mousedown", e => {
-    e.preventDefault(); // Keep focus in editor
+    e.preventDefault();
     execFormat(btn.dataset.cmd);
   });
 });
@@ -261,7 +277,7 @@ if (postForm) {
   });
 }
 
-// ─── Clear form / draft ───────────────────────────────────
+// ─── Clear form ───────────────────────────────────────────
 function clearForm() {
   if (!postForm) return;
   postForm.reset();
@@ -279,8 +295,6 @@ if (draftClear) draftClear.addEventListener("click", () => {
 // ─── Preview ──────────────────────────────────────────────
 function togglePreview() {
   isEditorPreview = !isEditorPreview;
-
-  const editorForm = document.querySelector(".editor-form");
   const fields = postForm ? Array.from(postForm.querySelectorAll(".field-group, .field-row")) : [];
 
   if (isEditorPreview) {
@@ -321,10 +335,15 @@ function buildPreview() {
 if (previewBtn)  previewBtn.addEventListener("click", togglePreview);
 if (previewClose) previewClose.addEventListener("click", togglePreview);
 
-// ─── Publish ──────────────────────────────────────────────
+// ─── Publish to Firestore ─────────────────────────────────
 if (postForm) {
   postForm.addEventListener("submit", async e => {
     e.preventDefault();
+
+    if (!firebaseReady) {
+      showFeedback("Firebase not initialized. Please refresh and log in again.", "error");
+      return;
+    }
 
     syncHidden();
 
@@ -344,55 +363,29 @@ if (postForm) {
       .map(t => t.trim())
       .filter(Boolean);
 
-    const payload = {
+    const postData = {
       title,
-      category: fd.get("category")?.toString() || "General",
+      category: fd.get("category")?.toString() || "Article",
       author: fd.get("author")?.toString().trim() || "RYDA Team",
       summary,
-      content: contentHtml, // store rich HTML
+      content: contentHtml,
       featured_image: fd.get("featured_image")?.toString().trim() || null,
       tags,
+      createdAt: new Date().toISOString(),
+      published: true
     };
 
     setPublishLoading(true);
     showFeedback("", "");
 
-    // 15-second safety timeout to prevent infinite loading
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
     try {
-      const res = await fetch(`${API}/posts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Writer-Token": writerToken,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const data = await res.json();
-
-      if (res.ok && data.post) {
-        showFeedback(`✓ "${data.post.title}" published successfully.`, "success");
-        clearForm();
-        try { localStorage.removeItem(DRAFT_KEY); } catch {}
-      } else if (res.status === 401) {
-        showFeedback("Session expired. Please log out and log back in.", "error");
-      } else {
-        showFeedback(data.error || "Failed to publish. Please check your token.", "error");
-      }
+      const docRef = await firestore.collection("posts").add(postData);
+      showFeedback(`✓ "${postData.title}" published successfully. (ID: ${docRef.id})`, "success");
+      clearForm();
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
     } catch (err) {
-      clearTimeout(timeoutId);
-      if (err.name === "AbortError") {
-        showFeedback("Request timed out. The server is taking too long to respond.", "error");
-      } else if (err.message.includes("fetch") || err.message.includes("Failed")) {
-        showFeedback("⚠ API not reachable. Post would be saved when deployed to Vercel.", "error");
-      } else {
-        showFeedback("Network error. Check your connection or Redis configuration.", "error");
-      }
+      console.error("Publish error:", err);
+      showFeedback("Failed to publish: " + (err.message || "Unknown error"), "error");
     }
 
     setPublishLoading(false);
@@ -412,19 +405,30 @@ function showFeedback(msg, type) {
   formFeedback.className = `form-feedback${type ? " " + type : ""}`;
 }
 
-// ─── Fetch & render posts ─────────────────────────────────
+// ─── Fetch posts from Firestore ───────────────────────────
 async function fetchPosts() {
   if (!postsList) return;
+  if (!firebaseReady) {
+    postsList.innerHTML = '<div class="posts-empty">Firebase not available. Refresh the page.</div>';
+    return;
+  }
   postsList.innerHTML = '<div class="posts-loading">Loading posts…</div>';
 
   try {
-    const res = await fetch(`${API}/posts`);
-    if (!res.ok) throw new Error(`${res.status}`);
-    const data = await res.json();
-    allPosts = data.posts || [];
+    const snapshot = await firestore.collection("posts")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    allPosts = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().createdAt // Firestore stored date
+    }));
+
     renderPostsList(allPosts);
-  } catch {
-    postsList.innerHTML = '<div class="posts-empty">Could not load posts. API may be unavailable in local development.</div>';
+  } catch (err) {
+    console.error("Fetch error:", err);
+    postsList.innerHTML = '<div class="posts-empty">Could not load posts. ' + esc(err.message) + '</div>';
   }
 }
 
@@ -441,7 +445,7 @@ function renderPostsList(posts) {
   }
 
   postsList.innerHTML = filtered
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
     .map(post => buildPostRow(post))
     .join("");
 
@@ -451,7 +455,8 @@ function renderPostsList(posts) {
 }
 
 function buildPostRow(post) {
-  const date = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(post.date));
+  const dateStr = post.date || post.createdAt || "";
+  const date = dateStr ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(dateStr)) : "No date";
   const titleSafe = esc(post.title);
   const catSafe   = esc(post.category);
   const authSafe  = esc(post.author);
@@ -474,24 +479,96 @@ async function confirmDelete(id, title) {
   if (!confirm(`Delete post:\n"${title}"?\n\nThis cannot be undone.`)) return;
 
   try {
-    const res = await fetch(`${API}/posts?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: { "X-Writer-Token": writerToken },
-    });
-    if (res.ok) {
-      allPosts = allPosts.filter(p => p.id !== id);
-      renderPostsList(allPosts);
-    } else {
-      const data = await res.json();
-      alert(data.error || "Failed to delete post.");
-    }
-  } catch {
-    alert("Network error. Could not delete post.");
+    await firestore.collection("posts").doc(id).delete();
+    allPosts = allPosts.filter(p => p.id !== id);
+    renderPostsList(allPosts);
+  } catch (err) {
+    alert("Failed to delete: " + err.message);
   }
 }
 
 if (postsSearch) postsSearch.addEventListener("input", () => renderPostsList(allPosts));
 if (refreshPostsBtn) refreshPostsBtn.addEventListener("click", fetchPosts);
+
+// ─── Image Upload to Cloudinary ────────────────────────
+if (imgFileInput) {
+  imgFileInput.addEventListener("change", async () => {
+    const file = imgFileInput.files[0];
+    if (!file) return;
+
+    // Validate size
+    if (file.size > 10 * 1024 * 1024) {
+      showUploadStatus("✗ Image must be under 10MB", "error");
+      imgFileInput.value = "";
+      return;
+    }
+
+    // Validate type
+    if (!file.type.match(/^image\/(jpeg|png|webp|gif)$/)) {
+      showUploadStatus("✗ Only JPG, PNG, WebP, or GIF allowed", "error");
+      imgFileInput.value = "";
+      return;
+    }
+
+    // Preview
+    const reader = new FileReader();
+    reader.onload = e => {
+      uploadPreviewImg.src = e.target.result;
+      uploadPreview.hidden = false;
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Cloudinary
+    showUploadStatus("↑ Uploading to Cloudinary…", "loading");
+    imgFileInput.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "ryda-images");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/ryda-ngo/image/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Cloudinary upload failed");
+
+      const data = await res.json();
+      imgUrlInput.value = data.secure_url;
+      showUploadStatus("✓ Image uploaded to Cloudinary", "success");
+      saveDraft();
+    } catch (err) {
+      console.error("Upload error:", err);
+      // Fallback: base64 data URI
+      try {
+        const b64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+        imgUrlInput.value = b64;
+        showUploadStatus("⚠ Cloudinary failed — using local image", "warning");
+        saveDraft();
+      } catch {
+        showUploadStatus("✗ Upload failed", "error");
+        uploadPreview.hidden = true;
+      }
+    }
+
+    imgFileInput.disabled = false;
+    imgFileInput.value = "";
+  });
+}
+
+function showUploadStatus(msg, type) {
+  if (!uploadStatus) return;
+  uploadStatus.textContent = msg;
+  uploadStatus.hidden = false;
+  uploadStatus.className = "upload-status " + (type || "");
+  if (type === "loading") uploadStatus.classList.add("is-loading");
+}
 
 // ─── Helper ───────────────────────────────────────────────
 function esc(str) {
