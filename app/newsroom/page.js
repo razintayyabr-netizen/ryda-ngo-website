@@ -233,8 +233,12 @@ export default function NewsroomPage() {
               </div>
             )}
 
-            {!loading && sortedNews.map((item, idx) => (
-              <Link href={`/newsroom/${item.id}`} key={item.id} className="nr-card reveal" style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
+            {!loading && sortedNews.map((item, idx) => {
+              // Static posts use their id directly; Firebase posts pass id as query param
+              const isStatic = item.id.startsWith('nr-');
+              const href = isStatic ? `/newsroom/${item.id}` : `/newsroom/article?id=${item.id}`;
+              return (
+              <Link href={href} key={item.id} className="nr-card reveal" style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
                 {item.featured_image && (
                   <div className="nr-card-image">
                     <img src={item.featured_image} alt="" loading="lazy" />
@@ -254,7 +258,8 @@ export default function NewsroomPage() {
                   </span>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </section>
       </main>
