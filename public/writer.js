@@ -363,15 +363,24 @@ if (postForm) {
       .map(t => t.trim())
       .filter(Boolean);
 
+    const now = new Date().toISOString();
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      + '-' + Date.now().toString(36);
+
     const postData = {
       title,
+      slug,
       category: fd.get("category")?.toString() || "Article",
       author: fd.get("author")?.toString().trim() || "RYDA Team",
       summary,
       content: contentHtml,
       featured_image: fd.get("featured_image")?.toString().trim() || null,
       tags,
-      createdAt: new Date().toISOString(),
+      date: now,
+      createdAt: now,
       published: true
     };
 
