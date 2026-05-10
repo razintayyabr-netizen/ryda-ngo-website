@@ -549,21 +549,8 @@ if (imgFileInput) {
       saveDraft();
     } catch (err) {
       console.error("Upload error:", err);
-      // Fallback: base64 data URI
-      try {
-        const b64 = await new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result);
-          r.onerror = reject;
-          r.readAsDataURL(file);
-        });
-        imgUrlInput.value = b64;
-        showUploadStatus("⚠ Cloudinary failed — using local image", "warning");
-        saveDraft();
-      } catch {
-        showUploadStatus("✗ Upload failed", "error");
-        uploadPreview.hidden = true;
-      }
+      showUploadStatus("✗ Upload failed — try pasting an image URL instead", "error");
+      uploadPreview.hidden = true;
     }
 
     imgFileInput.disabled = false;
