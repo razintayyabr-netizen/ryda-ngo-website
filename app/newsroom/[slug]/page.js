@@ -1,16 +1,24 @@
+import STATIC_NEWS from '@/lib/staticNews';
 import ArticleClient from './ArticleClient';
 
 export function generateStaticParams() {
-  return [
-    { slug: 'nr-1' },
-    { slug: 'nr-2' },
-    { slug: 'nr-3' },
-    { slug: 'nr-4' },
-    { slug: 'nr-5' },
-    { slug: 'nr-6' },
-  ];
+  return STATIC_NEWS.map(post => ({ slug: post.id }));
 }
 
 export default function ArticlePage({ params }) {
-  return <ArticleClient />;
+  const post = STATIC_NEWS.find(p => p.id === params.slug);
+  
+  if (!post) {
+    return (
+      <>
+        <div className="article-loading">
+          <h2>Article Not Found</h2>
+          <p>The article you're looking for doesn't exist or has been removed.</p>
+          <a href="/newsroom" className="btn btn-primary">← Back to Newsroom</a>
+        </div>
+      </>
+    );
+  }
+
+  return <ArticleClient post={post} />;
 }

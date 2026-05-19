@@ -1,27 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBieGnfxoFqHLLZHz-MnHWRzl1eBarD7yo",
-  authDomain: "ryda-68015.firebaseapp.com",
-  projectId: "ryda-68015",
-  storageBucket: "ryda-68015.firebasestorage.app",
-  messagingSenderId: "845909692038",
-  appId: "1:845909692038:web:94c8c4a51a737e5abacb07"
-};
-
-let app, db;
-function getDb() {
-  if (!app) app = initializeApp(firebaseConfig);
-  if (!db) db = getFirestore(app);
-  return db;
-}
 
 function fmtDate(iso) {
   try {
@@ -61,39 +43,68 @@ function ArticleContent() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [articleUrl, setArticleUrl] = useState('');
+  const fetchedRef = useRef(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => { setArticleUrl(window.location.href); }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
     if (!id) { setLoading(false); setNotFound(true); return; }
+
+    // Skip if we already fetched this exact id
+    if (fetchedRef.current === id) {
+      setLoading(false);
+      return;
+    }
+    fetchedRef.current = id;
+    setLoading(true);
+    setNotFound(false);
+    setPost(null);
+
+    let cancelled = false;
 
     async function loadPost() {
       try {
-        const db = getDb();
-        const snap = await getDoc(doc(db, 'posts', id));
-        if (snap.exists()) {
-          setPost({ id: snap.id, ...snap.data(), date: snap.data().createdAt || snap.data().date });
+        const res = await fetch(`/api/posts?id=${id}`);
+        if (!mountedRef.current || cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (!mountedRef.current || cancelled) return;
+          setPost(data);
+          setLoading(false);
 
-          const allQ = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-          const allSnap = await getDocs(allQ);
-          const related = allSnap.docs
-            .filter(d => d.id !== id)
-            .slice(0, 3)
-            .map(d => ({ id: d.id, ...d.data(), date: d.data().createdAt || d.data().date }));
-          setRelatedPosts(related);
+          // Load related posts (best-effort)
+          try {
+            const allRes = await fetch('/api/posts');
+            if (allRes.ok && mountedRef.current && !cancelled) {
+              const all = await allRes.json();
+              setRelatedPosts(all.filter(p => p.id !== id).slice(0, 3));
+            }
+          } catch {}
         } else {
-          setNotFound(true);
+          if (mountedRef.current && !cancelled) {
+            setNotFound(true);
+            setLoading(false);
+          }
         }
       } catch (err) {
         console.error('Failed to load post:', err);
-        setNotFound(true);
+        if (mountedRef.current && !cancelled) {
+          setNotFound(true);
+          setLoading(false);
+        }
       }
-      setLoading(false);
     }
 
-    const safetyTimer = setTimeout(() => { setLoading(false); setNotFound(true); }, 8000);
+    // No safety timeout — let the natural fetch complete or fail
     loadPost();
-    return () => clearTimeout(safetyTimer);
+
+    return () => { cancelled = true; };
   }, [id]);
 
   if (loading) {
@@ -181,8 +192,11 @@ function ArticleContent() {
               <h2>Related Articles</h2>
             </div>
             <div className="related-grid">
-              {relatedPosts.map(item => (
-                <Link href={item.id.startsWith('nr-') ? `/newsroom/${item.id}` : `/newsroom/article?id=${item.id}`} key={item.id} className="nr-card">
+              {relatedPosts.map(item => {
+                const rIsStatic = item.id && item.id.startsWith('nr-');
+                const rHref = rIsStatic ? `/newsroom/${item.id}` : `/newsroom/article?id=${item.id}`;
+                return (
+                <Link href={rHref} key={item.id} className="nr-card">
                   <div className="nr-card-body">
                     <span className="news-badge">{item.category}</span>
                     <h3>{item.title}</h3>
@@ -194,7 +208,8 @@ function ArticleContent() {
                     <span className="nr-card-read">Read Article →</span>
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
             <div className="related-cta">
               <Link href="/newsroom" className="is-btn-secondary">View All Articles →</Link>

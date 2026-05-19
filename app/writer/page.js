@@ -10,9 +10,6 @@ export const metadata = {
 };
 
 const rawHTML = `
-  <!-- Firebase SDKs (Compat for vanilla JS) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <!-- ═══ LOGIN GATE ═══════════════════════════════════════════════════════ -->
   <div class="login-screen" id="login-screen">
     <div class="login-card">
@@ -176,7 +173,7 @@ const rawHTML = `
               <div class="upload-preview" id="upload-preview" hidden>
                 <img id="upload-preview-img" src="" alt="Preview">
               </div>
-              <span class="field-hint">Paste an image URL, or click Upload to use Imgur (max 5MB, JPG/PNG/WebP/GIF).</span>
+              <span class="field-hint">Paste an image URL, or click Upload to use RYDA storage (max 5MB, JPG/PNG/WebP/GIF).</span>
             </div>
 
             <div class="field-group">
