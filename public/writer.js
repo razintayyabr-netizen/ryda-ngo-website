@@ -433,6 +433,9 @@ function buildPostRow(post) {
       <div class="post-row-meta">${authSafe} \u00b7 ${esc(date)}</div>
     </div>
     <div class="post-row-actions">
+      <button class="btn btn-primary" type="button"
+        data-edit-id="${esc(post.id)}"
+        data-edit-title="${titleSafe}">Edit</button>
       <button class="btn btn-danger" type="button"
         data-delete-id="${esc(post.id)}"
         data-delete-title="${titleSafe}">Delete</button>
@@ -538,3 +541,25 @@ function esc(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+ 
+ 
+ 
+  
+ / /   A d d i n g   e d i t   f u n c t i o n a l i t y  
+  
+ a s y n c   f u n c t i o n   l o a d P o s t F o r E d i t ( i d ,   t i t l e )   {  
+     t r y   {  
+         c o n s t   r e s   =   a w a i t   f e t c h ( ' / a p i / p o s t s ? i d = '   +   i d ) ;  
+         i f   ( ! r e s . o k )   t h r o w   n e w   E r r o r ( ' F a i l e d   t o   f e t c h   p o s t ' ) ;  
+         c o n s t   p o s t s   =   a w a i t   r e s . j s o n ( ) ;  
+         c o n s t   p o s t   =   A r r a y . i s A r r a y ( p o s t s )   ?   p o s t s . f i n d ( p   = >   p . i d   = = =   i d )   :   p o s t s ;  
+  
+         i f   ( ! p o s t )   t h r o w   n e w   E r r o r ( ' P o s t   n o t   f o u n d ' ) ;  
+         / /   P o p u l a t e   f o r m   w i t h   p o s t   d a t a  
+         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - t i t l e ' ) . v a l u e   =   p o s t . t i t l e   | |   ' ' ;  
+         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - c a t e g o r y ' ) . v a l u e   =   p o s t . c a t e g o r y   | |   ' A r t i c l e ' ;  
+  
+         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - a u t h o r ' ) . v a l u e   =   p o s t . a u t h o r   | |   ' R Y D A   T e a m ' ;  
+         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - s u m m a r y ' ) . v a l u e   =   p o s t . s u m m a r y   | |   ' ' ;  
+ 
