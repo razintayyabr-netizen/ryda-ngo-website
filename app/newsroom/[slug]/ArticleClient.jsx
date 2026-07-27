@@ -85,6 +85,7 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
   }, [handleKeyDown]);
 
   if (activeIdx === null || !images[activeIdx]) return null;
+  const currentImg = images[activeIdx];
 
   return (
     <div className="lightbox-overlay" onClick={onClose} role="dialog" aria-modal="true">
@@ -92,8 +93,12 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
         <button className="lightbox-close" onClick={onClose} aria-label="Close photo modal">✕</button>
         
         <div className="lightbox-image-container">
-          <img src={images[activeIdx]} alt={`Photo ${activeIdx + 1}`} className="lightbox-image" />
+          <img src={currentImg.url} alt={currentImg.caption || `Photo ${activeIdx + 1}`} className="lightbox-image" />
         </div>
+
+        {currentImg.caption && (
+          <p className="lightbox-caption">📷 {currentImg.caption}</p>
+        )}
 
         <div className="lightbox-controls">
           {images.length > 1 && (
@@ -151,7 +156,7 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
 
         .lightbox-image-container {
           max-width: 100%;
-          max-height: 78vh;
+          max-height: 72vh;
           overflow: hidden;
           border-radius: 12px;
           box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
@@ -160,15 +165,26 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
         .lightbox-image {
           display: block;
           max-width: 100%;
-          max-height: 78vh;
+          max-height: 72vh;
           object-fit: contain;
+        }
+
+        .lightbox-caption {
+          margin-top: 10px;
+          font-size: 0.92rem;
+          color: rgba(255, 255, 255, 0.9);
+          background: rgba(255, 255, 255, 0.1);
+          padding: 6px 16px;
+          border-radius: 8px;
+          text-align: center;
+          max-width: 80%;
         }
 
         .lightbox-controls {
           display: flex;
           align-items: center;
           gap: 16px;
-          margin-top: 16px;
+          margin-top: 14px;
         }
 
         .lightbox-nav {
@@ -219,11 +235,16 @@ export default function ArticleClient({ post: preloadedPost }) {
   const [activeModalIdx, setActiveModalIdx] = useState(null);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  const images = post
+  const rawImages = post
     ? (Array.isArray(post.images) && post.images.length > 0
         ? post.images
         : (post.featured_image ? [post.featured_image] : []))
     : [];
+
+  const images = rawImages.map(img => {
+    if (typeof img === 'string') return { url: img, caption: '' };
+    return { url: img?.url || '', caption: img?.caption || '' };
+  }).filter(img => img.url);
 
   const readTime = post ? calcReadTime((post.content || '') + (post.summary || '')) : 1;
 
@@ -378,12 +399,19 @@ export default function ArticleClient({ post: preloadedPost }) {
       <section className="article-content-section">
         <div className="article-container">
           {images.length > 0 && (
-            <div className="article-featured-image" onClick={() => setActiveModalIdx(0)} style={{ cursor: 'pointer' }} title="Click to open photo viewer">
-              <img src={images[0]} alt={post.title} />
-              {images.length > 1 && (
-                <div className="photo-badge-overlay">
-                  📷 {images.length} Photos — Click to expand
-                </div>
+            <div className="article-featured-image-wrap">
+              <div className="article-featured-image" onClick={() => setActiveModalIdx(0)} style={{ cursor: 'pointer' }} title="Click to open photo viewer">
+                <img src={images[0].url} alt={post.title} />
+                {images.length > 1 && (
+                  <div className="photo-badge-overlay">
+                    📷 {images.length} Photos — Click to expand
+                  </div>
+                )}
+              </div>
+              {images[0].caption && (
+                <figcaption className="photo-caption-text">
+                  📷 {images[0].caption}
+                </figcaption>
               )}
             </div>
           )}
@@ -402,10 +430,15 @@ export default function ArticleClient({ post: preloadedPost }) {
             <div className="article-gallery-section">
               <h3 className="gallery-title">📷 Photo Gallery ({images.length} Photos)</h3>
               <div className="article-gallery-grid">
-                {images.map((imgUrl, i) => (
-                  <div key={i} className="gallery-card" onClick={() => setActiveModalIdx(i)} title="Click to view full photo">
-                    <img src={imgUrl} alt={`Photo ${i + 1}`} loading="lazy" />
-                    <div className="gallery-card-zoom">🔍 Click to zoom</div>
+                {images.map((imgObj, i) => (
+                  <div key={i} className="gallery-card-item">
+                    <div className="gallery-card" onClick={() => setActiveModalIdx(i)} title="Click to view full photo">
+                      <img src={imgObj.url} alt={`Photo ${i + 1}`} loading="lazy" />
+                      <div className="gallery-card-zoom">🔍 Click to zoom</div>
+                    </div>
+                    {imgObj.caption && (
+                      <p className="gallery-card-caption">{imgObj.caption}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -488,8 +521,19 @@ export default function ArticleClient({ post: preloadedPost }) {
           padding: 6px 14px;
           border-radius: 999px;
         }
+        .article-featured-image-wrap {
+          margin-bottom: 24px;
+        }
         .article-featured-image {
           position: relative;
+        }
+        .photo-caption-text {
+          font-size: 0.88rem;
+          color: rgba(255, 255, 255, 0.7);
+          font-style: italic;
+          margin-top: 8px;
+          padding: 4px 8px;
+          border-left: 2px solid #0FA693;
         }
         .photo-badge-overlay {
           position: absolute;
@@ -521,6 +565,10 @@ export default function ArticleClient({ post: preloadedPost }) {
           grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
           gap: 16px;
         }
+        .gallery-card-item {
+          display: flex;
+          flex-direction: column;
+        }
         .gallery-card {
           position: relative;
           aspect-ratio: 4/3;
@@ -540,6 +588,12 @@ export default function ArticleClient({ post: preloadedPost }) {
           width: 100%;
           height: 100%;
           object-fit: cover;
+        }
+        .gallery-card-caption {
+          font-size: 0.78rem;
+          color: rgba(255, 255, 255, 0.7);
+          margin-top: 6px;
+          line-height: 1.35;
         }
         .gallery-card-zoom {
           position: absolute;

@@ -85,11 +85,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Title, summary, and content are required' }, { status: 400 });
     }
 
-    let imageList = Array.isArray(images) ? images.filter(Boolean) : [];
+    let imageList = Array.isArray(images)
+      ? images.map(img => {
+          if (typeof img === 'string') return { url: img, caption: '' };
+          return { url: img?.url || '', caption: img?.caption || '' };
+        }).filter(img => img.url)
+      : [];
     if (!imageList.length && featured_image) {
-      imageList = [featured_image];
+      const featUrl = typeof featured_image === 'string' ? featured_image : (featured_image?.url || '');
+      if (featUrl) imageList = [{ url: featUrl, caption: featured_image?.caption || '' }];
     }
-    const primaryImage = featured_image || (imageList.length > 0 ? imageList[0] : null);
+    const primaryUrl = typeof featured_image === 'string' ? featured_image : (featured_image?.url || (imageList.length > 0 ? imageList[0].url : null));
 
     const id = 'post-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
     const now = new Date().toISOString();
@@ -101,7 +107,7 @@ export async function POST(request) {
       author: author || 'RYDA Team',
       summary,
       content,
-      featured_image: primaryImage,
+      featured_image: primaryUrl,
       images: imageList,
       tags: tags || [],
       date: now,
@@ -141,11 +147,20 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
 
-    let imageList = Array.isArray(images) ? images.filter(Boolean) : (posts[idx].images || []);
+    let imageList = Array.isArray(images)
+      ? images.map(img => {
+          if (typeof img === 'string') return { url: img, caption: '' };
+          return { url: img?.url || '', caption: img?.caption || '' };
+        }).filter(img => img.url)
+      : (posts[idx].images || []);
+
     if (!imageList.length && featured_image) {
-      imageList = [featured_image];
+      const featUrl = typeof featured_image === 'string' ? featured_image : (featured_image?.url || '');
+      if (featUrl) imageList = [{ url: featUrl, caption: featured_image?.caption || '' }];
     }
-    const primaryImage = featured_image !== undefined ? featured_image : (imageList.length > 0 ? imageList[0] : posts[idx].featured_image);
+    const primaryUrl = featured_image !== undefined
+      ? (typeof featured_image === 'string' ? featured_image : (featured_image?.url || null))
+      : (imageList.length > 0 ? imageList[0].url : posts[idx].featured_image);
 
     posts[idx] = {
       ...posts[idx],

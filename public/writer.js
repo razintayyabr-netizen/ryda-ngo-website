@@ -1,5 +1,5 @@
 /* ============================================================
-   RYDA — Writer Panel Script v5.0 (API & Multi-Photo Support)
+   RYDA — Writer Panel Script v5.2 (Multi-Photo & Captions Support)
    ============================================================ */
 "use strict";
 
@@ -12,8 +12,15 @@ let writerToken = sessionStorage.getItem(TOKEN_KEY) || "";
 let allPosts = [];
 let currentPanel = "new-post";
 let isEditorPreview = false;
-let uploadedImages = [];
+let uploadedImages = []; // [{ url: string, caption: string }]
 let editingPostId = null;
+
+// ─── Helper ───────────────────────────────────────────────
+function normalizeImageObj(item) {
+  if (!item) return null;
+  if (typeof item === "string") return { url: item, caption: "" };
+  return { url: item.url || "", caption: item.caption || "" };
+}
 
 // ─── DOM refs ─────────────────────────────────────────────
 const loginScreen     = document.getElementById("login-screen");
@@ -217,15 +224,18 @@ function renderGallery() {
   }
 
   if (galleryCount) galleryCount.textContent = `${uploadedImages.length} photo${uploadedImages.length > 1 ? "s" : ""} added`;
-  if (featuredImgHidden) featuredImgHidden.value = uploadedImages[0] || "";
+  if (featuredImgHidden) featuredImgHidden.value = uploadedImages[0]?.url || "";
 
-  uploadedImages.forEach((url, idx) => {
+  uploadedImages.forEach((imgObj, idx) => {
     const item = document.createElement("div");
     item.className = `gallery-item${idx === 0 ? " is-cover" : ""}`;
     item.innerHTML = `
       <div class="gallery-thumb-wrap">
-        <img src="${esc(url)}" class="gallery-thumb" alt="Photo ${idx + 1}">
+        <img src="${esc(imgObj.url)}" class="gallery-thumb" alt="Photo ${idx + 1}">
         ${idx === 0 ? '<span class="gallery-cover-badge">Main Cover</span>' : ''}
+      </div>
+      <div class="gallery-caption-wrap">
+        <input type="text" class="gallery-caption-input" placeholder="Add photo caption..." value="${esc(imgObj.caption || '')}" data-caption-idx="${idx}">
       </div>
       <div class="gallery-item-actions">
         ${idx !== 0 ? `<button type="button" class="gallery-btn" data-act="make-cover" data-idx="${idx}">Set Main</button>` : '<span></span>'}
@@ -237,6 +247,16 @@ function renderGallery() {
       </div>
     `;
     galleryGrid.appendChild(item);
+  });
+
+  galleryGrid.querySelectorAll(".gallery-caption-input").forEach(inp => {
+    inp.addEventListener("input", () => {
+      const idx = parseInt(inp.dataset.captionIdx, 10);
+      if (uploadedImages[idx]) {
+        uploadedImages[idx].caption = inp.value;
+        saveDraft();
+      }
+    });
   });
 
   galleryGrid.querySelectorAll("[data-act]").forEach(btn => {
@@ -273,7 +293,7 @@ if (addUrlBtn && imgUrlInput) {
       showUploadStatus("✗ Please enter a valid HTTP or HTTPS image URL", "error");
       return;
     }
-    uploadedImages.push(url);
+    uploadedImages.push({ url, caption: "" });
     imgUrlInput.value = "";
     showUploadStatus("✓ Photo added to gallery", "success");
     renderGallery();
@@ -315,7 +335,7 @@ if (imgFileInput) {
       if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
 
       const newUrls = data.urls || (data.url ? [data.url] : []);
-      uploadedImages.push(...newUrls);
+      newUrls.forEach(u => uploadedImages.push({ url: u, caption: "" }));
       showUploadStatus(`✓ ${newUrls.length} photo(s) uploaded successfully`, "success");
       renderGallery();
     } catch (err) {
@@ -339,7 +359,7 @@ function saveDraft() {
       category: fd.get("category") || "",
       author: fd.get("author") || "",
       summary: fd.get("summary") || "",
-      featured_image: uploadedImages[0] || "",
+      featured_image: uploadedImages[0]?.url || "",
       images: uploadedImages,
       tags: fd.get("tags") || "",
       content_html: richEditor ? richEditor.innerHTML : "",
@@ -364,9 +384,9 @@ function restoreDraft() {
       if (sel) sel.value = draft.category;
     }
     if (draft.images && Array.isArray(draft.images)) {
-      uploadedImages = draft.images;
+      uploadedImages = draft.images.map(normalizeImageObj).filter(Boolean);
     } else if (draft.featured_image) {
-      uploadedImages = [draft.featured_image];
+      uploadedImages = [{ url: draft.featured_image, caption: "" }];
     }
     renderGallery();
     if (draft.content_html && richEditor) {
@@ -442,7 +462,7 @@ function buildPreview() {
   const imgWrap = document.getElementById("prev-image-wrap");
   const img = document.getElementById("prev-image");
   if (uploadedImages.length > 0) {
-    img.src = uploadedImages[0];
+    img.src = uploadedImages[0].url;
     imgWrap.hidden = false;
   } else {
     imgWrap.hidden = true;
@@ -454,9 +474,10 @@ function buildPreview() {
   if (uploadedImages.length > 1) {
     if (galCount) galCount.textContent = uploadedImages.length.toString();
     if (galGrid) {
-      galGrid.innerHTML = uploadedImages.map(url => `
+      galGrid.innerHTML = uploadedImages.map(item => `
         <div class="preview-gallery-item">
-          <img src="${esc(url)}" alt="Gallery photo">
+          <img src="${esc(item.url)}" alt="Gallery photo">
+          ${item.caption ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.7);padding:4px;">${esc(item.caption)}</div>` : ''}
         </div>
       `).join("");
     }
@@ -505,7 +526,7 @@ if (postForm) {
         author: fd.get("author")?.toString().trim() || "RYDA Team",
         summary,
         content: contentHtml,
-        featured_image: uploadedImages[0] || null,
+        featured_image: uploadedImages[0]?.url || null,
         images: uploadedImages,
         tags
       };
@@ -639,8 +660,8 @@ async function loadPostForEdit(id) {
     }
 
     uploadedImages = Array.isArray(post.images) && post.images.length > 0
-      ? [...post.images]
-      : (post.featured_image ? [post.featured_image] : []);
+      ? post.images.map(normalizeImageObj).filter(Boolean)
+      : (post.featured_image ? [{ url: post.featured_image, caption: "" }] : []);
 
     renderGallery();
     if (publishBtnText) publishBtnText.textContent = "Update Post";

@@ -777,6 +777,29 @@ p { color: var(--on-bg-dim); line-height: 1.72; }
   background: var(--bg-panel);
 }
 
+.gallery-caption-wrap {
+  padding: 6px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line);
+}
+
+.gallery-caption-input {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--line-mid);
+  border-radius: 4px;
+  color: var(--on-bg);
+  font-size: 0.76rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.gallery-caption-input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(15,166,147,0.15);
+}
+
 .gallery-btn {
   background: transparent;
   border: 1px solid var(--line);

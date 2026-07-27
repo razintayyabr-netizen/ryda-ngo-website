@@ -27,7 +27,8 @@ async function getRedis() {
   return redisPromise;
 }
 
-async function getPost(slugOrId) {
+async function getPost(slugOrId, reqBaseUrl = 'https://rydarohingya.org') {
+  // 1. Try Redis
   try {
     const r = await getRedis();
     if (r) {
@@ -40,12 +41,21 @@ async function getPost(slugOrId) {
     }
   } catch (e) {}
 
+  // 2. Try internal /api/posts fetch for dynamic posts
+  try {
+    const fetchUrl = `${reqBaseUrl}/api/posts?id=${encodeURIComponent(slugOrId)}`;
+    const res = await fetch(fetchUrl, { next: { revalidate: 10 } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && (data.id || data.slug)) return data;
+    }
+  } catch (e) {}
+
+  // 3. Fallback to STATIC_NEWS
   return STATIC_NEWS.find(p => p.id === slugOrId || p.slug === slugOrId) || null;
 }
 
 export async function generateMetadata({ params }) {
-  const post = await getPost(params.slug);
-  
   let reqHost = 'rydarohingya.org';
   try {
     const headersList = headers();
@@ -55,16 +65,21 @@ export async function generateMetadata({ params }) {
   const protocol = reqHost.includes('localhost') ? 'http' : 'https';
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${reqHost}`;
 
-  if (!post) {
-    return {
-      title: 'Article Not Found — RYDA',
-      description: 'The requested article could not be found in the RYDA newsroom.',
-    };
-  }
+  const post = await getPost(params.slug, baseUrl);
 
-  let rawImages = Array.isArray(post.images) && post.images.length > 0
-    ? post.images
-    : (post.featured_image ? [post.featured_image] : []);
+  const title = post ? `${post.title} — RYDA Newsroom` : 'Article — RYDA Newsroom';
+  const description = post ? post.summary : 'Read the latest statements, updates, and reports from the Rohingya Youth Development Association (RYDA).';
+
+  let rawImages = [];
+  if (post) {
+    if (Array.isArray(post.images) && post.images.length > 0) {
+      rawImages = post.images.map(img => typeof img === 'string' ? img : (img?.url || '')).filter(Boolean);
+    }
+    if (!rawImages.length && post.featured_image) {
+      const feat = typeof post.featured_image === 'string' ? post.featured_image : (post.featured_image?.url || '');
+      if (feat) rawImages = [feat];
+    }
+  }
 
   if (!rawImages.length) {
     rawImages = ['https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80'];
@@ -75,49 +90,50 @@ export async function generateMetadata({ params }) {
     return `${baseUrl}${img.startsWith('/') ? '' : '/'}${img}`;
   });
 
-  const canonicalUrl = `${baseUrl}/newsroom/${post.slug || post.id}`;
-  const textLength = ((post.content || '') + (post.summary || '')).replace(/<[^>]*>/g, '').split(/\s+/).length;
+  const canonicalUrl = `${baseUrl}/newsroom/${post ? (post.slug || post.id) : params.slug}`;
+  const textLength = post ? ((post.content || '') + (post.summary || '')).replace(/<[^>]*>/g, '').split(/\s+/).length : 200;
   const readTimeMin = Math.max(1, Math.ceil(textLength / 200));
   const primaryImage = absoluteImages[0];
 
   return {
-    title: `${post.title} — RYDA Newsroom`,
-    description: post.summary,
+    title,
+    description,
     alternates: {
       canonical: canonicalUrl,
     },
     openGraph: {
-      title: post.title,
-      description: post.summary,
+      title,
+      description,
       url: canonicalUrl,
       siteName: 'RYDA — Rohingya Youth Development Association',
       locale: 'en_US',
       type: 'article',
-      publishedTime: post.date,
-      authors: [post.author || 'RYDA Team'],
-      tags: post.tags || [],
+      publishedTime: post ? post.date : new Date().toISOString(),
+      authors: [post ? (post.author || 'RYDA Team') : 'RYDA Team'],
+      tags: post?.tags || [],
       images: absoluteImages.map(url => ({
         url,
         secureUrl: url,
         width: 1200,
         height: 630,
         type: 'image/jpeg',
-        alt: post.title,
+        alt: title,
       })),
     },
     twitter: {
       card: 'summary_large_image',
-      title: post.title,
-      description: post.summary,
+      title,
+      description,
       site: '@RYDA35',
       creator: '@RYDA35',
       images: [primaryImage, ...absoluteImages.slice(1)],
     },
     other: {
+      'twitter:image': primaryImage,
       'twitter:image:src': primaryImage,
-      'twitter:image:alt': post.title,
+      'twitter:image:alt': title,
       'twitter:label1': 'Written by',
-      'twitter:data1': post.author || 'RYDA Team',
+      'twitter:data1': post ? (post.author || 'RYDA Team') : 'RYDA Team',
       'twitter:label2': 'Reading time',
       'twitter:data2': `${readTimeMin} min read`,
     },
@@ -129,6 +145,15 @@ export async function generateStaticParams() {
 }
 
 export default async function ArticlePage({ params }) {
-  const post = await getPost(params.slug);
+  let reqHost = 'rydarohingya.org';
+  try {
+    const headersList = headers();
+    reqHost = headersList.get('host') || headersList.get('x-forwarded-host') || 'rydarohingya.org';
+  } catch (e) {}
+
+  const protocol = reqHost.includes('localhost') ? 'http' : 'https';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${reqHost}`;
+
+  const post = await getPost(params.slug, baseUrl);
   return <ArticleClient post={post} slug={params.slug} />;
 }
