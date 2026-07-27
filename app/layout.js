@@ -16,16 +16,16 @@ export const metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://ryda-rohingya.org',
+    url: 'https://rydarohingya.org',
     siteName: 'RYDA',
     title: 'RYDA — Rohingya Youth Development Association',
     description: 'Documenting violations, amplifying voices, building leaders, delivering relief.',
     images: [
       {
-        url: '/assets/ryda-logo.svg',
-        width: 512,
-        height: 512,
-        alt: 'RYDA Logo',
+        url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80',
+        width: 1200,
+        height: 630,
+        alt: 'RYDA — Rohingya Youth Development Association',
       },
     ],
   },
@@ -33,7 +33,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'RYDA — Rohingya Youth Development Association',
     description: 'Documenting violations, amplifying voices, building leaders, delivering relief.',
-    images: ['/assets/ryda-logo.svg'],
+    images: ['https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80'],
     creator: '@RYDA35',
   },
   robots: {
