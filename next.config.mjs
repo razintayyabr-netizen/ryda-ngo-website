@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   images: { unoptimized: true },
-  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;

@@ -23,7 +23,14 @@ function ShareButtons({ title, url }) {
   const [copied, setCopied] = useState(false);
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
   const ts = typeof window !== 'undefined' ? Date.now().toString(36) : '1';
-  const freshUrl = url ? (url.includes('?') ? `${url}&v=${ts}` : `${url}?v=${ts}`) : url;
+  
+  const getFreshUrl = () => {
+    if (!url) return '';
+    const base = url.split('?')[0];
+    const cleanBase = base.endsWith('/') ? base : `${base}/`;
+    return `${cleanBase}?v=${ts}`;
+  };
+  const freshUrl = getFreshUrl();
 
   const handleNativeShare = async () => {
     try {
