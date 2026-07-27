@@ -86,8 +86,14 @@ export async function generateMetadata({ params }) {
   }
 
   const absoluteImages = rawImages.map(img => {
-    if (img.startsWith('http://') || img.startsWith('https://')) return img;
-    return `${baseUrl}${img.startsWith('/') ? '' : '/'}${img}`;
+    let url = typeof img === 'string' ? img : (img?.url || '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+    if (url.includes('/api/image/') && !url.endsWith('/')) {
+      url = `${url}/`;
+    }
+    return url;
   });
 
   const canonicalUrl = `${baseUrl}/newsroom/${post ? (post.slug || post.id) : params.slug}`;
