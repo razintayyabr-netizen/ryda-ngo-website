@@ -50,6 +50,7 @@ export async function GET(request, { params }) {
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
+      'Content-Length': buffer.length.toString(),
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Access-Control-Allow-Origin': '*',
     },
