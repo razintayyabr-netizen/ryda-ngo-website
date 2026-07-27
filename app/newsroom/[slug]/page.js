@@ -161,5 +161,57 @@ export default async function ArticlePage({ params }) {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${reqHost}`;
 
   const post = await getPost(params.slug, baseUrl);
-  return <ArticleClient post={post} slug={params.slug} />;
+
+  let rawImages = [];
+  if (post) {
+    if (Array.isArray(post.images) && post.images.length > 0) {
+      rawImages = post.images.map(img => typeof img === 'string' ? img : (img?.url || '')).filter(Boolean);
+    }
+    if (!rawImages.length && post.featured_image) {
+      const feat = typeof post.featured_image === 'string' ? post.featured_image : (post.featured_image?.url || '');
+      if (feat) rawImages = [feat];
+    }
+  }
+
+  if (!rawImages.length) {
+    rawImages = ['https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80'];
+  }
+
+  const absoluteImages = rawImages.map(img => {
+    let url = typeof img === 'string' ? img : (img?.url || '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+    if (url.includes('/api/image/') && !url.endsWith('/')) {
+      url = `${url}/`;
+    }
+    return url;
+  });
+
+  const finalImg = absoluteImages[0];
+  const postTitle = post ? `${post.title} — RYDA Newsroom` : 'Article — RYDA Newsroom';
+  const postSummary = post ? post.summary : 'Read updates and reports from RYDA.';
+
+  return (
+    <>
+      <head>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@RYDA35" />
+        <meta name="twitter:creator" content="@RYDA35" />
+        <meta name="twitter:title" content={postTitle} />
+        <meta name="twitter:description" content={postSummary} />
+        <meta name="twitter:image" content={finalImg} />
+        <meta name="twitter:image:src" content={finalImg} />
+        <meta property="og:title" content={postTitle} />
+        <meta property="og:description" content={postSummary} />
+        <meta property="og:image" content={finalImg} />
+        <meta property="og:image:secure_url" content={finalImg} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:type" content="article" />
+      </head>
+      <ArticleClient post={post} slug={params.slug} />
+    </>
+  );
 }
