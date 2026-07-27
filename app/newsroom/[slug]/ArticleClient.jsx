@@ -13,8 +13,25 @@ function fmtDate(iso) {
   }
 }
 
+function calcReadTime(text) {
+  if (!text) return 1;
+  const words = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
 function ShareButtons({ title, url }) {
   const [copied, setCopied] = useState(false);
+  const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+
+  const handleNativeShare = async () => {
+    try {
+      await navigator.share({
+        title: title,
+        text: `${title} — RYDA Newsroom`,
+        url: url,
+      });
+    } catch {}
+  };
 
   const handleCopy = async () => {
     try {
@@ -36,6 +53,12 @@ function ShareButtons({ title, url }) {
   return (
     <div className="share-section">
       <span className="share-label">Share Article:</span>
+      {canNativeShare && (
+        <button onClick={handleNativeShare} className="share-btn share-native" aria-label="Share via device">
+          <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M15 7C16.1046 7 17 6.10457 17 5C17 3.89543 16.1046 3 15 3C13.8954 3 13 3.89543 13 5C13 6.10457 13.8954 7 15 7Z" stroke="currentColor" strokeWidth="1.5"/><path d="M5 12C6.10457 12 7 11.1046 7 10C7 8.89543 6.10457 8 5 8C3.89543 8 3 8.89543 3 10C3 11.1046 3.89543 12 5 12Z" stroke="currentColor" strokeWidth="1.5"/><path d="M15 17C16.1046 17 17 16.1046 17 15C17 13.8954 16.1046 13 15 13C13.8954 13 13 13.8954 13 15C13 16.1046 13.8954 17 15 17Z" stroke="currentColor" strokeWidth="1.5"/><path d="M6.7 10.9L13.3 14.1M13.3 5.9L6.7 9.1" stroke="currentColor" strokeWidth="1.5"/></svg>
+          Share
+        </button>
+      )}
       <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer" className="share-btn share-twitter" aria-label="Share on X / Twitter">𝕏</a>
       <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer" className="share-btn share-facebook" aria-label="Share on Facebook">f</a>
       <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer" className="share-btn share-linkedin" aria-label="Share on LinkedIn">in</a>
@@ -88,8 +111,8 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
           position: fixed;
           inset: 0;
           z-index: 9999;
-          background: rgba(0, 0, 0, 0.90);
-          backdrop-filter: blur(10px);
+          background: rgba(0, 0, 0, 0.92);
+          backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -99,7 +122,7 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
 
         .lightbox-content {
           position: relative;
-          max-width: 1100px;
+          max-width: 1150px;
           max-height: 90vh;
           display: flex;
           flex-direction: column;
@@ -109,14 +132,14 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
 
         .lightbox-close {
           position: absolute;
-          top: -40px;
+          top: -42px;
           right: 0;
           background: rgba(255, 255, 255, 0.15);
           border: none;
           color: #fff;
           font-size: 1.4rem;
-          width: 38px;
-          height: 38px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           cursor: pointer;
           display: flex;
@@ -124,14 +147,14 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
           justify-content: center;
           transition: background 0.15s;
         }
-        .lightbox-close:hover { background: rgba(255, 255, 255, 0.3); }
+        .lightbox-close:hover { background: rgba(255, 255, 255, 0.35); }
 
         .lightbox-image-container {
           max-width: 100%;
           max-height: 78vh;
           overflow: hidden;
           border-radius: 12px;
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+          box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
         }
 
         .lightbox-image {
@@ -163,7 +186,7 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
           transition: background 0.15s, transform 0.15s;
         }
         .lightbox-nav:hover {
-          background: rgba(15, 166, 147, 0.8);
+          background: rgba(15, 166, 147, 0.85);
           transform: scale(1.08);
         }
 
@@ -171,7 +194,7 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
           font-family: monospace;
           font-size: 0.9rem;
           color: rgba(255, 255, 255, 0.85);
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.12);
           padding: 6px 14px;
           border-radius: 999px;
         }
@@ -194,12 +217,28 @@ export default function ArticleClient({ post: preloadedPost }) {
   const [notFound, setNotFound] = useState(false);
   const [articleUrl, setArticleUrl] = useState('');
   const [activeModalIdx, setActiveModalIdx] = useState(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   const images = post
     ? (Array.isArray(post.images) && post.images.length > 0
         ? post.images
         : (post.featured_image ? [post.featured_image] : []))
     : [];
+
+  const readTime = post ? calcReadTime((post.content || '') + (post.summary || '')) : 1;
+
+  // Track reading scroll progress bar
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalHeight > 0) {
+        const progress = (window.scrollY / totalHeight) * 100;
+        setScrollProgress(Math.min(100, Math.max(0, progress)));
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (post) {
@@ -295,6 +334,11 @@ export default function ArticleClient({ post: preloadedPost }) {
 
   return (
     <div className="article-page">
+      {/* Top Reading Progress Indicator */}
+      <div className="reading-progress-track">
+        <div className="reading-progress-fill" style={{ width: `${scrollProgress}%` }}></div>
+      </div>
+
       <section className="article-hero">
         <div className="article-container">
           <div className="article-breadcrumb">
@@ -313,6 +357,10 @@ export default function ArticleClient({ post: preloadedPost }) {
             <div className="article-meta-item">
               <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><rect x="3" y="4" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M3 8H17M7 2V5M13 2V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
               <span>{fmtDate(post.date)}</span>
+            </div>
+            <div className="article-meta-divider"></div>
+            <div className="article-meta-item read-time-tag">
+              ⏱️ <span>{readTime} min read</span>
             </div>
             {post.tags && post.tags.length > 0 && (
               <>
@@ -347,7 +395,7 @@ export default function ArticleClient({ post: preloadedPost }) {
             <p>{post.summary}</p>
           </div>
 
-          <article className="article-body" dangerouslySetInnerHTML={{ __html: post.content || '<p><em>Content not available.</em></p>' }} />
+          <article className="article-body editorial-typography" dangerouslySetInnerHTML={{ __html: post.content || '<p><em>Content not available.</em></p>' }} />
 
           {/* Multi-Photo Gallery Grid */}
           {images.length > 1 && (
@@ -357,7 +405,7 @@ export default function ArticleClient({ post: preloadedPost }) {
                 {images.map((imgUrl, i) => (
                   <div key={i} className="gallery-card" onClick={() => setActiveModalIdx(i)} title="Click to view full photo">
                     <img src={imgUrl} alt={`Photo ${i + 1}`} loading="lazy" />
-                    <div className="gallery-card-zoom">🔍</div>
+                    <div className="gallery-card-zoom">🔍 Click to zoom</div>
                   </div>
                 ))}
               </div>
@@ -415,52 +463,77 @@ export default function ArticleClient({ post: preloadedPost }) {
       <Footer />
 
       <style jsx>{`
+        .reading-progress-track {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.05);
+          z-index: 10000;
+        }
+        .reading-progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #0FA693, #C8952A);
+          transition: width 0.1s linear;
+        }
+        .read-time-tag {
+          color: rgba(200, 149, 42, 0.9);
+          font-weight: 600;
+        }
+        .share-native {
+          background: linear-gradient(135deg, #0B4D41, #0FA693);
+          color: #fff !important;
+          border: none !important;
+          padding: 6px 14px;
+          border-radius: 999px;
+        }
         .article-featured-image {
           position: relative;
         }
         .photo-badge-overlay {
           position: absolute;
-          bottom: 12px;
-          right: 12px;
-          background: rgba(11, 77, 65, 0.85);
-          backdrop-filter: blur(6px);
+          bottom: 14px;
+          right: 14px;
+          background: rgba(11, 77, 65, 0.88);
+          backdrop-filter: blur(8px);
           color: #fff;
-          font-size: 0.8rem;
+          font-size: 0.82rem;
           font-weight: 600;
-          padding: 6px 14px;
+          padding: 7px 16px;
           border-radius: 999px;
-          box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.35);
         }
         .article-gallery-section {
-          margin: 36px 0;
-          padding-top: 24px;
+          margin: 40px 0;
+          padding-top: 28px;
           border-top: 1px solid rgba(255,255,255,0.08);
         }
         .gallery-title {
           font-family: 'DM Sans', sans-serif;
-          font-size: 1.15rem;
+          font-size: 1.2rem;
           font-weight: 700;
           color: #fff;
-          margin-bottom: 16px;
+          margin-bottom: 18px;
         }
         .article-gallery-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 14px;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 16px;
         }
         .gallery-card {
           position: relative;
           aspect-ratio: 4/3;
-          border-radius: 10px;
+          border-radius: 12px;
           overflow: hidden;
           cursor: pointer;
           background: #1A2232;
           border: 1px solid rgba(255,255,255,0.1);
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .gallery-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+          transform: translateY(-4px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.45);
           border-color: #0FA693;
         }
         .gallery-card img {
@@ -471,12 +544,14 @@ export default function ArticleClient({ post: preloadedPost }) {
         .gallery-card-zoom {
           position: absolute;
           inset: 0;
-          background: rgba(0,0,0,0.4);
+          background: rgba(0,0,0,0.5);
+          backdrop-filter: blur(2px);
           opacity: 0;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.4rem;
+          font-size: 0.9rem;
+          font-weight: 600;
           color: #fff;
           transition: opacity 0.2s;
         }

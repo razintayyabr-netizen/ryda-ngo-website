@@ -67,9 +67,11 @@ export async function generateMetadata({ params }) {
   });
 
   const canonicalUrl = `${baseUrl}/newsroom/${post.slug || post.id}`;
+  const textLength = ((post.content || '') + (post.summary || '')).replace(/<[^>]*>/g, '').split(/\s+/).length;
+  const readTimeMin = Math.max(1, Math.ceil(textLength / 200));
 
   return {
-    title: `${post.title} — RYDA`,
+    title: `${post.title} — RYDA Newsroom`,
     description: post.summary,
     alternates: {
       canonical: canonicalUrl,
@@ -83,10 +85,12 @@ export async function generateMetadata({ params }) {
       type: 'article',
       publishedTime: post.date,
       authors: [post.author || 'RYDA Team'],
+      tags: post.tags || [],
       images: absoluteImages.map(url => ({
         url,
         width: 1200,
         height: 630,
+        type: 'image/jpeg',
         alt: post.title,
       })),
     },
@@ -97,6 +101,12 @@ export async function generateMetadata({ params }) {
       site: '@RYDA35',
       creator: '@RYDA35',
       images: absoluteImages,
+    },
+    other: {
+      'twitter:label1': 'Written by',
+      'twitter:data1': post.author || 'RYDA Team',
+      'twitter:label2': 'Reading time',
+      'twitter:data2': `${readTimeMin} min read`,
     },
   };
 }
