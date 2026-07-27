@@ -71,7 +71,7 @@ export async function POST(request) {
       await r.set(`ryda:image:${imgId}`, dataUrl);
       await r.expire(`ryda:image:${imgId}`, 90 * 24 * 60 * 60);
 
-      urls.push(`/api/image/${imgId}/`);
+      urls.push(`/api/image/${imgId}.jpg`);
     }
 
     return NextResponse.json({

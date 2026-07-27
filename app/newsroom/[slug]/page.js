@@ -87,11 +87,14 @@ export async function generateMetadata({ params }) {
 
   const absoluteImages = rawImages.map(img => {
     let url = typeof img === 'string' ? img : (img?.url || '');
+    if (url.includes('/api/image/')) {
+      url = url.replace(/\/+$/, '');
+      if (!url.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+        url = `${url}.jpg`;
+      }
+    }
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-    }
-    if (url.includes('/api/image/') && !url.endsWith('/')) {
-      url = `${url}/`;
     }
     return url;
   });
@@ -179,11 +182,14 @@ export default async function ArticlePage({ params }) {
 
   const absoluteImages = rawImages.map(img => {
     let url = typeof img === 'string' ? img : (img?.url || '');
+    if (url.includes('/api/image/')) {
+      url = url.replace(/\/+$/, '');
+      if (!url.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+        url = `${url}.jpg`;
+      }
+    }
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-    }
-    if (url.includes('/api/image/') && !url.endsWith('/')) {
-      url = `${url}/`;
     }
     return url;
   });

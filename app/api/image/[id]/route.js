@@ -25,7 +25,9 @@ async function getRedis() {
 }
 
 export async function GET(request, { params }) {
-  const { id } = params;
+  const rawId = params.id || '';
+  const id = rawId.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '');
+  
   const r = await getRedis();
   if (!r) {
     return NextResponse.json({ error: 'Storage unavailable' }, { status: 500 });
@@ -36,7 +38,6 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Image not found' }, { status: 404 });
   }
 
-  // dataUrl format: data:image/jpeg;base64,xxxxx
   const match = dataUrl.match(/^data:(.+?);base64,(.+)$/);
   if (!match) {
     return NextResponse.json({ error: 'Invalid image data' }, { status: 500 });
@@ -50,6 +51,7 @@ export async function GET(request, { params }) {
     headers: {
       'Content-Type': contentType,
       'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*',
     },
   });
 }
