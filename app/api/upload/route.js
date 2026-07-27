@@ -30,47 +30,58 @@ const MAX_SIZE = 2 * 1024 * 1024;
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file');
     const token = formData.get('token');
 
     if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!file) {
+    let files = formData.getAll('files');
+    if (!files || files.length === 0) {
+      const singleFile = formData.get('file');
+      if (singleFile) files = [singleFile];
+    }
+
+    if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Only JPG, PNG, WebP, or GIF allowed' }, { status: 400 });
-    }
-
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'Image must be under 2MB' }, { status: 400 });
-    }
-
-    // Convert to data URL and store in Redis (publicly accessible as static file)
-    const bytes = await file.arrayBuffer();
-    const base64 = Buffer.from(bytes).toString('base64');
-    const dataUrl = `data:${file.type};base64,${base64}`;
-
-    // Store in Redis with a key that expires after 90 days (auto-cleanup)
     const r = await getRedis();
     if (!r) {
       return NextResponse.json({ error: 'Storage unavailable' }, { status: 500 });
     }
 
-    const imgId = 'img-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-    await r.set(`ryda:image:${imgId}`, dataUrl);
-    await r.expire(`ryda:image:${imgId}`, 90 * 24 * 60 * 60); // 90 days
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const urls = [];
+
+    for (const file of files) {
+      if (typeof file === 'string') continue;
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json({ error: `File ${file.name} is invalid type. Only JPG, PNG, WebP, GIF allowed.` }, { status: 400 });
+      }
+      if (file.size > MAX_SIZE) {
+        return NextResponse.json({ error: `File ${file.name} exceeds 2MB limit.` }, { status: 400 });
+      }
+
+      const bytes = await file.arrayBuffer();
+      const base64 = Buffer.from(bytes).toString('base64');
+      const dataUrl = `data:${file.type};base64,${base64}`;
+
+      const imgId = 'img-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+      await r.set(`ryda:image:${imgId}`, dataUrl);
+      await r.expire(`ryda:image:${imgId}`, 90 * 24 * 60 * 60);
+
+      urls.push(`/api/image/${imgId}`);
+    }
 
     return NextResponse.json({
       success: true,
-      url: `/api/image/${imgId}`,
+      url: urls[0],
+      urls,
     });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
+

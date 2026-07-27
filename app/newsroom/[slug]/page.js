@@ -1,24 +1,111 @@
 import STATIC_NEWS from '@/lib/staticNews';
 import ArticleClient from './ArticleClient';
+import { createClient } from 'redis';
 
-export function generateStaticParams() {
+export const revalidate = 60; // Revalidate every minute
+
+let redis = null;
+let redisPromise = null;
+
+async function getRedis() {
+  if (redis && redis.isOpen) return redis;
+  if (!process.env.REDIS_URL) return null;
+  if (!redisPromise) {
+    redisPromise = (async () => {
+      try {
+        redis = createClient({ url: process.env.REDIS_URL });
+        redis.on('error', () => {});
+        await redis.connect();
+        return redis;
+      } catch (e) {
+        redisPromise = null;
+        return null;
+      }
+    })();
+  }
+  return redisPromise;
+}
+
+async function getPost(slugOrId) {
+  try {
+    const r = await getRedis();
+    if (r) {
+      const raw = await r.get('ryda:posts');
+      if (raw) {
+        const posts = JSON.parse(raw);
+        const found = posts.find(p => p.id === slugOrId || p.slug === slugOrId);
+        if (found) return found;
+      }
+    }
+  } catch (e) {}
+
+  return STATIC_NEWS.find(p => p.id === slugOrId || p.slug === slugOrId) || null;
+}
+
+export async function generateMetadata({ params }) {
+  const post = await getPost(params.slug);
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ryda-rohingya.org';
+
+  if (!post) {
+    return {
+      title: 'Article Not Found — RYDA',
+      description: 'The requested article could not be found in the RYDA newsroom.',
+    };
+  }
+
+  let rawImages = Array.isArray(post.images) && post.images.length > 0
+    ? post.images
+    : (post.featured_image ? [post.featured_image] : []);
+
+  if (!rawImages.length) {
+    rawImages = ['/assets/ryda-logo.svg'];
+  }
+
+  const absoluteImages = rawImages.map(img => {
+    if (img.startsWith('http://') || img.startsWith('https://')) return img;
+    return `${baseUrl}${img.startsWith('/') ? '' : '/'}${img}`;
+  });
+
+  const canonicalUrl = `${baseUrl}/newsroom/${post.slug || post.id}`;
+
+  return {
+    title: `${post.title} — RYDA`,
+    description: post.summary,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: post.title,
+      description: post.summary,
+      url: canonicalUrl,
+      siteName: 'RYDA — Rohingya Youth Development Association',
+      locale: 'en_US',
+      type: 'article',
+      publishedTime: post.date,
+      authors: [post.author || 'RYDA Team'],
+      images: absoluteImages.map(url => ({
+        url,
+        width: 1200,
+        height: 630,
+        alt: post.title,
+      })),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.summary,
+      site: '@RYDA35',
+      creator: '@RYDA35',
+      images: absoluteImages,
+    },
+  };
+}
+
+export async function generateStaticParams() {
   return STATIC_NEWS.map(post => ({ slug: post.id }));
 }
 
-export default function ArticlePage({ params }) {
-  const post = STATIC_NEWS.find(p => p.id === params.slug);
-  
-  if (!post) {
-    return (
-      <>
-        <div className="article-loading">
-          <h2>Article Not Found</h2>
-          <p>The article you're looking for doesn't exist or has been removed.</p>
-          <a href="/newsroom" className="btn btn-primary">← Back to Newsroom</a>
-        </div>
-      </>
-    );
-  }
-
-  return <ArticleClient post={post} />;
+export default async function ArticlePage({ params }) {
+  const post = await getPost(params.slug);
+  return <ArticleClient post={post} slug={params.slug} />;
 }

@@ -158,22 +158,31 @@ const rawHTML = `
             </div>
 
             <div class="field-group">
-              <label for="f-image">Featured Image</label>
+              <label>Article Photos &amp; Cover Image</label>
               <div class="image-upload-row" id="image-upload-row">
-                <input id="f-image" name="featured_image" type="url"
-                  placeholder="https://example.com/photo.jpg">
+                <input id="f-image-url-input" type="url" placeholder="Paste image URL (https://...) and click Add">
+                <button type="button" class="btn btn-outline btn-sm" id="add-url-btn">Add URL</button>
                 <span class="upload-or">or</span>
-                <label class="btn btn-outline btn-sm upload-file-btn" for="f-image-file">
+                <label class="btn btn-primary btn-sm upload-file-btn" for="f-image-file">
                   <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M3 15V17H17V15M10 3V12M10 12L7 9M10 12L13 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  Upload
+                  Upload Multiple Photos
                 </label>
-                <input id="f-image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden-file-input">
+                <input id="f-image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden-file-input">
               </div>
+              <input id="f-image" name="featured_image" type="hidden">
+
               <div class="upload-status" id="upload-status" hidden></div>
-              <div class="upload-preview" id="upload-preview" hidden>
-                <img id="upload-preview-img" src="" alt="Preview">
+              
+              <!-- Multi-photo gallery list -->
+              <div class="gallery-manager" id="gallery-manager">
+                <div class="gallery-manager-header">
+                  <span class="gallery-count" id="gallery-count">0 photos added</span>
+                  <span class="field-hint">First photo will be used as Main Cover. Drag or click buttons to rearrange.</span>
+                </div>
+                <div class="gallery-grid" id="gallery-grid">
+                  <div class="gallery-empty" id="gallery-empty">No photos added yet. Upload or paste URLs above.</div>
+                </div>
               </div>
-              <span class="field-hint">Paste an image URL, or click Upload to use RYDA storage (max 5MB, JPG/PNG/WebP/GIF).</span>
             </div>
 
             <div class="field-group">
@@ -196,6 +205,10 @@ const rawHTML = `
               <div class="preview-meta" id="prev-meta"></div>
               <div class="preview-image-wrap" id="prev-image-wrap" hidden>
                 <img id="prev-image" src="" alt="">
+              </div>
+              <div class="preview-gallery-wrap" id="prev-gallery-wrap" hidden>
+                <div class="preview-gallery-title">Article Gallery (<span id="prev-gallery-count">0</span> photos)</div>
+                <div class="preview-gallery-grid" id="prev-gallery-grid"></div>
               </div>
               <div class="preview-summary" id="prev-summary"></div>
               <hr class="preview-rule">

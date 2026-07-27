@@ -1,10 +1,5 @@
 /* ============================================================
-   RYDA — Writer Panel Script v4.0 (API-based)
-   - Auth via static token check
-   - Posts stored via /api/posts
-   - Images uploaded via /api/upload (Vercel Blob)
-   - Rich text editor with toolbar
-   - Post management (list, delete)
+   RYDA — Writer Panel Script v5.0 (API & Multi-Photo Support)
    ============================================================ */
 "use strict";
 
@@ -17,21 +12,23 @@ let writerToken = sessionStorage.getItem(TOKEN_KEY) || "";
 let allPosts = [];
 let currentPanel = "new-post";
 let isEditorPreview = false;
+let uploadedImages = [];
+let editingPostId = null;
 
 // ─── DOM refs ─────────────────────────────────────────────
-const loginScreen  = document.getElementById("login-screen");
-const dashboard    = document.getElementById("dashboard");
-const loginForm    = document.getElementById("login-form");
-const tokenInput   = document.getElementById("token-input");
-const loginBtn     = document.getElementById("login-btn");
-const loginBtnText = document.getElementById("login-btn-text");
-const loginSpinner = document.getElementById("login-spinner");
-const loginError   = document.getElementById("login-error");
-const logoutBtn    = document.getElementById("logout-btn");
+const loginScreen     = document.getElementById("login-screen");
+const dashboard       = document.getElementById("dashboard");
+const loginForm       = document.getElementById("login-form");
+const tokenInput      = document.getElementById("token-input");
+const loginBtn        = document.getElementById("login-btn");
+const loginBtnText    = document.getElementById("login-btn-text");
+const loginSpinner    = document.getElementById("login-spinner");
+const loginError      = document.getElementById("login-error");
+const logoutBtn       = document.getElementById("logout-btn");
 
-const panels    = document.querySelectorAll(".panel");
-const sbLinks   = document.querySelectorAll(".sb-link[data-panel]");
-const postForm  = document.getElementById("post-form");
+const panels          = document.querySelectorAll(".panel");
+const sbLinks         = document.querySelectorAll(".sb-link[data-panel]");
+const postForm        = document.getElementById("post-form");
 const publishBtn      = document.getElementById("publish-btn");
 const publishBtnText  = document.getElementById("publish-btn-text");
 const publishSpinner  = document.getElementById("publish-spinner");
@@ -45,11 +42,15 @@ const postPreview     = document.getElementById("post-preview");
 const postsList       = document.getElementById("posts-list");
 const postsSearch     = document.getElementById("posts-search");
 const refreshPostsBtn = document.getElementById("refresh-posts");
+
 const imgFileInput    = document.getElementById("f-image-file");
-const imgUrlInput     = document.getElementById("f-image");
+const imgUrlInput     = document.getElementById("f-image-url-input");
+const addUrlBtn       = document.getElementById("add-url-btn");
+const featuredImgHidden = document.getElementById("f-image");
 const uploadStatus    = document.getElementById("upload-status");
-const uploadPreview   = document.getElementById("upload-preview");
-const uploadPreviewImg = document.getElementById("upload-preview-img");
+
+const galleryGrid     = document.getElementById("gallery-grid");
+const galleryCount    = document.getElementById("gallery-count");
 
 // ─── Auth ─────────────────────────────────────────────────
 function showDashboard() {
@@ -104,7 +105,6 @@ if (logoutBtn) {
   });
 }
 
-// Auto-login
 if (writerToken && verifyToken(writerToken)) {
   showDashboard();
 }
@@ -203,17 +203,144 @@ charCountEls.forEach(el => {
   }
 });
 
+// ─── Multi-Photo Gallery Management ─────────────────────
+function renderGallery() {
+  if (!galleryGrid) return;
+  galleryGrid.innerHTML = "";
+
+  if (!uploadedImages || uploadedImages.length === 0) {
+    galleryGrid.innerHTML = '<div class="gallery-empty">No photos added yet. Upload or paste URLs above.</div>';
+    if (galleryCount) galleryCount.textContent = "0 photos added";
+    if (featuredImgHidden) featuredImgHidden.value = "";
+    saveDraft();
+    return;
+  }
+
+  if (galleryCount) galleryCount.textContent = `${uploadedImages.length} photo${uploadedImages.length > 1 ? "s" : ""} added`;
+  if (featuredImgHidden) featuredImgHidden.value = uploadedImages[0] || "";
+
+  uploadedImages.forEach((url, idx) => {
+    const item = document.createElement("div");
+    item.className = `gallery-item${idx === 0 ? " is-cover" : ""}`;
+    item.innerHTML = `
+      <div class="gallery-thumb-wrap">
+        <img src="${esc(url)}" class="gallery-thumb" alt="Photo ${idx + 1}">
+        ${idx === 0 ? '<span class="gallery-cover-badge">Main Cover</span>' : ''}
+      </div>
+      <div class="gallery-item-actions">
+        ${idx !== 0 ? `<button type="button" class="gallery-btn" data-act="make-cover" data-idx="${idx}">Set Main</button>` : '<span></span>'}
+        <div style="display:flex;gap:3px;">
+          ${idx > 0 ? `<button type="button" class="gallery-btn" data-act="move-left" data-idx="${idx}" title="Move left">←</button>` : ''}
+          ${idx < uploadedImages.length - 1 ? `<button type="button" class="gallery-btn" data-act="move-right" data-idx="${idx}" title="Move right">→</button>` : ''}
+          <button type="button" class="gallery-btn gallery-btn-danger" data-act="remove" data-idx="${idx}" title="Remove photo">✕</button>
+        </div>
+      </div>
+    `;
+    galleryGrid.appendChild(item);
+  });
+
+  galleryGrid.querySelectorAll("[data-act]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      const act = btn.dataset.act;
+      const idx = parseInt(btn.dataset.idx, 10);
+      if (act === "make-cover") {
+        const item = uploadedImages.splice(idx, 1)[0];
+        uploadedImages.unshift(item);
+      } else if (act === "move-left" && idx > 0) {
+        const temp = uploadedImages[idx];
+        uploadedImages[idx] = uploadedImages[idx - 1];
+        uploadedImages[idx - 1] = temp;
+      } else if (act === "move-right" && idx < uploadedImages.length - 1) {
+        const temp = uploadedImages[idx];
+        uploadedImages[idx] = uploadedImages[idx + 1];
+        uploadedImages[idx + 1] = temp;
+      } else if (act === "remove") {
+        uploadedImages.splice(idx, 1);
+      }
+      renderGallery();
+    });
+  });
+
+  saveDraft();
+}
+
+if (addUrlBtn && imgUrlInput) {
+  addUrlBtn.addEventListener("click", () => {
+    const url = imgUrlInput.value.trim();
+    if (!url) return;
+    if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("/api/")) {
+      showUploadStatus("✗ Please enter a valid HTTP or HTTPS image URL", "error");
+      return;
+    }
+    uploadedImages.push(url);
+    imgUrlInput.value = "";
+    showUploadStatus("✓ Photo added to gallery", "success");
+    renderGallery();
+  });
+}
+
+if (imgFileInput) {
+  imgFileInput.addEventListener("change", async () => {
+    const files = Array.from(imgFileInput.files);
+    if (!files.length) return;
+
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        showUploadStatus(`✗ File ${file.name} is over 5MB`, "error");
+        imgFileInput.value = "";
+        return;
+      }
+      if (!file.type.match(/^image\/(jpeg|png|webp|gif)$/)) {
+        showUploadStatus(`✗ File ${file.name} is not JPG, PNG, WebP, or GIF`, "error");
+        imgFileInput.value = "";
+        return;
+      }
+    }
+
+    showUploadStatus(`↑ Uploading ${files.length} photo(s)...`, "loading");
+    imgFileInput.disabled = true;
+
+    try {
+      const formData = new FormData();
+      files.forEach(f => formData.append("files", f));
+      formData.append("token", writerToken);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
+
+      const newUrls = data.urls || (data.url ? [data.url] : []);
+      uploadedImages.push(...newUrls);
+      showUploadStatus(`✓ ${newUrls.length} photo(s) uploaded successfully`, "success");
+      renderGallery();
+    } catch (err) {
+      console.error("Upload error:", err);
+      showUploadStatus("✗ Upload failed: " + (err.message || "Unknown error"), "error");
+    }
+
+    imgFileInput.disabled = false;
+    imgFileInput.value = "";
+  });
+}
+
 // ─── Draft saving ─────────────────────────────────────────
 function saveDraft() {
   if (!postForm) return;
   try {
     const fd = new FormData(postForm);
     const draft = {
+      editingPostId,
       title: fd.get("title") || "",
       category: fd.get("category") || "",
       author: fd.get("author") || "",
       summary: fd.get("summary") || "",
-      featured_image: fd.get("featured_image") || "",
+      featured_image: uploadedImages[0] || "",
+      images: uploadedImages,
       tags: fd.get("tags") || "",
       content_html: richEditor ? richEditor.innerHTML : "",
     };
@@ -226,21 +353,30 @@ function restoreDraft() {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw || !postForm) return;
     const draft = JSON.parse(raw);
+    editingPostId = draft.editingPostId || null;
     const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
     set("f-title", draft.title);
     set("f-author", draft.author);
     set("f-summary", draft.summary);
-    set("f-image", draft.featured_image);
     set("f-tags", draft.tags);
     if (draft.category) {
       const sel = document.getElementById("f-category");
       if (sel) sel.value = draft.category;
     }
+    if (draft.images && Array.isArray(draft.images)) {
+      uploadedImages = draft.images;
+    } else if (draft.featured_image) {
+      uploadedImages = [draft.featured_image];
+    }
+    renderGallery();
     if (draft.content_html && richEditor) {
       richEditor.innerHTML = draft.content_html;
       syncHidden();
     }
     charCountEls.forEach(el => updateCharCount(el));
+    if (editingPostId && publishBtnText) {
+      publishBtnText.textContent = "Update Post";
+    }
   } catch {}
 }
 
@@ -255,6 +391,10 @@ if (postForm) {
 function clearForm() {
   if (!postForm) return;
   postForm.reset();
+  uploadedImages = [];
+  editingPostId = null;
+  renderGallery();
+  if (publishBtnText) publishBtnText.textContent = "Publish Post";
   if (richEditor) { richEditor.innerHTML = ""; syncHidden(); }
   if (formFeedback) { formFeedback.textContent = ""; formFeedback.className = "form-feedback"; }
   if (isEditorPreview) togglePreview();
@@ -287,12 +427,11 @@ function togglePreview() {
 
 function buildPreview() {
   const fd = new FormData(postForm);
-  const title   = fd.get("title")?.toString().trim() || "(Untitled)";
+  const title    = fd.get("title")?.toString().trim() || "(Untitled)";
   const category = fd.get("category")?.toString() || "General";
-  const author  = fd.get("author")?.toString().trim() || "RYDA Team";
-  const summary = fd.get("summary")?.toString().trim() || "";
-  const image   = fd.get("featured_image")?.toString().trim() || "";
-  const content = richEditor ? richEditor.innerHTML : "";
+  const author   = fd.get("author")?.toString().trim() || "RYDA Team";
+  const summary  = fd.get("summary")?.toString().trim() || "";
+  const content  = richEditor ? richEditor.innerHTML : "";
 
   document.getElementById("prev-badge").textContent = category;
   document.getElementById("prev-title").textContent = title;
@@ -302,14 +441,35 @@ function buildPreview() {
 
   const imgWrap = document.getElementById("prev-image-wrap");
   const img = document.getElementById("prev-image");
-  if (image) { img.src = image; imgWrap.hidden = false; }
-  else imgWrap.hidden = true;
+  if (uploadedImages.length > 0) {
+    img.src = uploadedImages[0];
+    imgWrap.hidden = false;
+  } else {
+    imgWrap.hidden = true;
+  }
+
+  const galWrap = document.getElementById("prev-gallery-wrap");
+  const galGrid = document.getElementById("prev-gallery-grid");
+  const galCount = document.getElementById("prev-gallery-count");
+  if (uploadedImages.length > 1) {
+    if (galCount) galCount.textContent = uploadedImages.length.toString();
+    if (galGrid) {
+      galGrid.innerHTML = uploadedImages.map(url => `
+        <div class="preview-gallery-item">
+          <img src="${esc(url)}" alt="Gallery photo">
+        </div>
+      `).join("");
+    }
+    if (galWrap) galWrap.hidden = false;
+  } else if (galWrap) {
+    galWrap.hidden = true;
+  }
 }
 
-if (previewBtn)  previewBtn.addEventListener("click", togglePreview);
+if (previewBtn)   previewBtn.addEventListener("click", togglePreview);
 if (previewClose) previewClose.addEventListener("click", togglePreview);
 
-// ─── Publish via API ──────────────────────────────────────
+// ─── Publish / Update via API ────────────────────────────
 if (postForm) {
   postForm.addEventListener("submit", async e => {
     e.preventDefault();
@@ -334,33 +494,42 @@ if (postForm) {
     setPublishLoading(true);
     showFeedback("", "");
 
+    const isUpdate = !!editingPostId;
+    const endpoint = "/api/posts";
+    const method = isUpdate ? "PUT" : "POST";
+
     try {
-      const res = await fetch("/api/posts", {
-        method: "POST",
+      const payload = {
+        title,
+        category: fd.get("category")?.toString() || "Article",
+        author: fd.get("author")?.toString().trim() || "RYDA Team",
+        summary,
+        content: contentHtml,
+        featured_image: uploadedImages[0] || null,
+        images: uploadedImages,
+        tags
+      };
+
+      if (isUpdate) payload.id = editingPostId;
+
+      const res = await fetch(endpoint, {
+        method,
         headers: {
           "Content-Type": "application/json",
           "x-writer-token": writerToken
         },
-        body: JSON.stringify({
-          title,
-          category: fd.get("category")?.toString() || "Article",
-          author: fd.get("author")?.toString().trim() || "RYDA Team",
-          summary,
-          content: contentHtml,
-          featured_image: fd.get("featured_image")?.toString().trim() || null,
-          tags
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Publish failed");
 
-      showFeedback(`✓ "${data.post.title}" published successfully.`, "success");
+      showFeedback(`✓ "${data.post.title}" ${isUpdate ? 'updated' : 'published'} successfully.`, "success");
       clearForm();
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
     } catch (err) {
       console.error("Publish error:", err);
-      showFeedback("Failed to publish: " + (err.message || "Unknown error"), "error");
+      showFeedback("Failed: " + (err.message || "Unknown error"), "error");
     }
 
     setPublishLoading(false);
@@ -417,6 +586,10 @@ function renderPostsList(posts) {
   postsList.querySelectorAll("[data-delete-id]").forEach(btn => {
     btn.addEventListener("click", () => confirmDelete(btn.dataset.deleteId, btn.dataset.deleteTitle));
   });
+
+  postsList.querySelectorAll("[data-edit-id]").forEach(btn => {
+    btn.addEventListener("click", () => loadPostForEdit(btn.dataset.editId));
+  });
 }
 
 function buildPostRow(post) {
@@ -425,22 +598,59 @@ function buildPostRow(post) {
   const titleSafe = esc(post.title);
   const catSafe   = esc(post.category);
   const authSafe  = esc(post.author);
+  const imageCount = (post.images && post.images.length) || (post.featured_image ? 1 : 0);
   return `
   <div class="post-row">
     <div class="post-row-info">
-      <span class="post-row-badge">${catSafe}</span>
+      <span class="post-row-badge">${catSafe}</span> ${imageCount > 0 ? `<span class="post-row-badge" style="background:rgba(200,149,42,0.18);color:#C8952A;">${imageCount} photo${imageCount > 1 ? 's' : ''}</span>` : ''}
       <div class="post-row-title" title="${titleSafe}">${titleSafe}</div>
       <div class="post-row-meta">${authSafe} \u00b7 ${esc(date)}</div>
     </div>
     <div class="post-row-actions">
-      <button class="btn btn-primary" type="button"
-        data-edit-id="${esc(post.id)}"
-        data-edit-title="${titleSafe}">Edit</button>
+      <button class="btn btn-outline btn-sm" type="button"
+        data-edit-id="${esc(post.id)}">Edit</button>
       <button class="btn btn-danger" type="button"
         data-delete-id="${esc(post.id)}"
         data-delete-title="${titleSafe}">Delete</button>
     </div>
   </div>`;
+}
+
+async function loadPostForEdit(id) {
+  try {
+    const res = await fetch(`/api/posts?id=${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error("Failed to fetch post");
+    const post = await res.json();
+
+    editingPostId = post.id;
+    const set = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ""; };
+
+    set("f-title", post.title);
+    set("f-author", post.author);
+    set("f-summary", post.summary);
+    set("f-tags", Array.isArray(post.tags) ? post.tags.join(", ") : post.tags);
+
+    const sel = document.getElementById("f-category");
+    if (sel && post.category) sel.value = post.category;
+
+    if (richEditor) {
+      richEditor.innerHTML = post.content || "";
+      syncHidden();
+    }
+
+    uploadedImages = Array.isArray(post.images) && post.images.length > 0
+      ? [...post.images]
+      : (post.featured_image ? [post.featured_image] : []);
+
+    renderGallery();
+    if (publishBtnText) publishBtnText.textContent = "Update Post";
+
+    switchPanel("new-post");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showFeedback(`Editing post: "${post.title}"`, "success");
+  } catch (err) {
+    alert("Could not load post for editing: " + err.message);
+  }
 }
 
 async function confirmDelete(id, title) {
@@ -463,67 +673,6 @@ async function confirmDelete(id, title) {
 if (postsSearch) postsSearch.addEventListener("input", () => renderPostsList(allPosts));
 if (refreshPostsBtn) refreshPostsBtn.addEventListener("click", fetchPosts);
 
-// ─── Image Upload via API ─────────────────────────────────
-if (imgFileInput) {
-  imgFileInput.addEventListener("change", async () => {
-    const file = imgFileInput.files[0];
-    if (!file) return;
-
-    // Validate size
-    if (file.size > 5 * 1024 * 1024) {
-      showUploadStatus("✗ Image must be under 5MB", "error");
-      imgFileInput.value = "";
-      return;
-    }
-
-    // Validate type
-    if (!file.type.match(/^image\/(jpeg|png|webp|gif)$/)) {
-      showUploadStatus("✗ Only JPG, PNG, WebP, or GIF allowed", "error");
-      imgFileInput.value = "";
-      return;
-    }
-
-    // Preview
-    const reader = new FileReader();
-    reader.onload = e => {
-      uploadPreviewImg.src = e.target.result;
-      uploadPreview.hidden = false;
-    };
-    reader.readAsDataURL(file);
-
-    // Upload via RYDA API (Vercel Blob)
-    showUploadStatus("↑ Uploading image...", "loading");
-    imgFileInput.disabled = true;
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("token", writerToken);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
-
-      imgUrlInput.value = data.url;
-      uploadPreviewImg.src = data.url;
-      uploadPreview.hidden = false;
-      showUploadStatus("✓ Image uploaded", "success");
-      saveDraft();
-    } catch (err) {
-      console.error("Upload error:", err);
-      showUploadStatus("✗ Upload failed — try pasting an image URL instead", "error");
-      uploadPreview.hidden = true;
-    }
-
-    imgFileInput.disabled = false;
-    imgFileInput.value = "";
-  });
-}
-
 function showUploadStatus(msg, type) {
   if (!uploadStatus) return;
   uploadStatus.textContent = msg;
@@ -532,7 +681,6 @@ function showUploadStatus(msg, type) {
   if (type === "loading") uploadStatus.classList.add("is-loading");
 }
 
-// ─── Helper ───────────────────────────────────────────────
 function esc(str) {
   if (!str) return "";
   return String(str)
@@ -542,24 +690,11 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
- 
- 
- 
-  
- / /   A d d i n g   e d i t   f u n c t i o n a l i t y  
-  
- a s y n c   f u n c t i o n   l o a d P o s t F o r E d i t ( i d ,   t i t l e )   {  
-     t r y   {  
-         c o n s t   r e s   =   a w a i t   f e t c h ( ' / a p i / p o s t s ? i d = '   +   i d ) ;  
-         i f   ( ! r e s . o k )   t h r o w   n e w   E r r o r ( ' F a i l e d   t o   f e t c h   p o s t ' ) ;  
-         c o n s t   p o s t s   =   a w a i t   r e s . j s o n ( ) ;  
-         c o n s t   p o s t   =   A r r a y . i s A r r a y ( p o s t s )   ?   p o s t s . f i n d ( p   = >   p . i d   = = =   i d )   :   p o s t s ;  
-  
-         i f   ( ! p o s t )   t h r o w   n e w   E r r o r ( ' P o s t   n o t   f o u n d ' ) ;  
-         / /   P o p u l a t e   f o r m   w i t h   p o s t   d a t a  
-         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - t i t l e ' ) . v a l u e   =   p o s t . t i t l e   | |   ' ' ;  
-         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - c a t e g o r y ' ) . v a l u e   =   p o s t . c a t e g o r y   | |   ' A r t i c l e ' ;  
-  
-         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - a u t h o r ' ) . v a l u e   =   p o s t . a u t h o r   | |   ' R Y D A   T e a m ' ;  
-         d o c u m e n t . g e t E l e m e n t B y I d ( ' f - s u m m a r y ' ) . v a l u e   =   p o s t . s u m m a r y   | |   ' ' ;  
- 
+// Handle URL parameter edit (?edit=post-id)
+window.addEventListener("DOMContentLoaded", () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const editId = urlParams.get("edit");
+  if (editId) {
+    loadPostForEdit(editId);
+  }
+});

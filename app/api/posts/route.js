@@ -79,11 +79,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { title, category, author, summary, content, featured_image, tags } = body;
+    const { title, category, author, summary, content, featured_image, images, tags } = body;
 
     if (!title || !summary || !content) {
       return NextResponse.json({ error: 'Title, summary, and content are required' }, { status: 400 });
     }
+
+    let imageList = Array.isArray(images) ? images.filter(Boolean) : [];
+    if (!imageList.length && featured_image) {
+      imageList = [featured_image];
+    }
+    const primaryImage = featured_image || (imageList.length > 0 ? imageList[0] : null);
 
     const id = 'post-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
     const now = new Date().toISOString();
@@ -95,7 +101,8 @@ export async function POST(request) {
       author: author || 'RYDA Team',
       summary,
       content,
-      featured_image: featured_image || null,
+      featured_image: primaryImage,
+      images: imageList,
       tags: tags || [],
       date: now,
       createdAt: now,
@@ -112,3 +119,52 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
   }
 }
+
+// PUT /api/posts
+export async function PUT(request) {
+  try {
+    const body = await request.json();
+    const token = request.headers.get('x-writer-token') || body.token;
+
+    if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id, title, category, author, summary, content, featured_image, images, tags } = body;
+    if (!id) {
+      return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
+    }
+
+    const posts = await getDynamicPosts();
+    const idx = posts.findIndex(p => p.id === id);
+    if (idx === -1) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+
+    let imageList = Array.isArray(images) ? images.filter(Boolean) : (posts[idx].images || []);
+    if (!imageList.length && featured_image) {
+      imageList = [featured_image];
+    }
+    const primaryImage = featured_image !== undefined ? featured_image : (imageList.length > 0 ? imageList[0] : posts[idx].featured_image);
+
+    posts[idx] = {
+      ...posts[idx],
+      title: title || posts[idx].title,
+      category: category || posts[idx].category,
+      author: author || posts[idx].author,
+      summary: summary || posts[idx].summary,
+      content: content || posts[idx].content,
+      featured_image: primaryImage,
+      images: imageList,
+      tags: tags || posts[idx].tags,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveDynamicPosts(posts);
+    return NextResponse.json({ success: true, post: posts[idx] });
+  } catch (error) {
+    console.error('Update post error:', error);
+    return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
+  }
+}
+

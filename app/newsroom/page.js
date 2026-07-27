@@ -143,8 +143,7 @@ export default function NewsroomPage() {
             )}
 
             {!loading && sortedNews.map((item, idx) => {
-              const isStatic = item.id && item.id.startsWith('nr-');
-              const href = isStatic ? `/newsroom/${item.id}` : `/newsroom/article?id=${item.id}`;
+              const href = `/newsroom/${item.slug || item.id}`;
               return (
               <Link href={href} key={item.id} className="nr-card reveal" style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
                 {item.featured_image && (
