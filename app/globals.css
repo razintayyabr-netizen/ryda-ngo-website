@@ -927,7 +927,7 @@ p { color: var(--color-text-muted); margin-bottom: var(--sp-md); }
 /* ─── Newsroom Page ─────────────────────────────────────── */
 .nr-hero {
   position: relative;
-  padding: 80px 0 60px;
+  padding: 40px 0 24px;
   text-align: center;
   background: var(--color-bg);
   overflow: hidden;
@@ -959,6 +959,9 @@ p { color: var(--color-text-muted); margin-bottom: var(--sp-md); }
   max-width: 680px;
   margin: 0 auto;
   padding: 0 var(--sp-xl);
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
 }
 .nr-hero-content .section-tag,
 .section-tag {

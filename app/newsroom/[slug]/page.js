@@ -1,6 +1,7 @@
 import STATIC_NEWS from '@/lib/staticNews';
 import ArticleClient from './ArticleClient';
 import { createClient } from 'redis';
+import { headers } from 'next/headers';
 
 export const revalidate = 60; // Revalidate every minute
 
@@ -44,7 +45,15 @@ async function getPost(slugOrId) {
 
 export async function generateMetadata({ params }) {
   const post = await getPost(params.slug);
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ryda-rohingya.org';
+  
+  let reqHost = 'rydarohingya.org';
+  try {
+    const headersList = headers();
+    reqHost = headersList.get('host') || headersList.get('x-forwarded-host') || 'rydarohingya.org';
+  } catch (e) {}
+
+  const protocol = reqHost.includes('localhost') ? 'http' : 'https';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${reqHost}`;
 
   if (!post) {
     return {
@@ -58,7 +67,7 @@ export async function generateMetadata({ params }) {
     : (post.featured_image ? [post.featured_image] : []);
 
   if (!rawImages.length) {
-    rawImages = ['/assets/ryda-logo.svg'];
+    rawImages = ['https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80'];
   }
 
   const absoluteImages = rawImages.map(img => {
@@ -69,6 +78,7 @@ export async function generateMetadata({ params }) {
   const canonicalUrl = `${baseUrl}/newsroom/${post.slug || post.id}`;
   const textLength = ((post.content || '') + (post.summary || '')).replace(/<[^>]*>/g, '').split(/\s+/).length;
   const readTimeMin = Math.max(1, Math.ceil(textLength / 200));
+  const primaryImage = absoluteImages[0];
 
   return {
     title: `${post.title} — RYDA Newsroom`,
@@ -88,6 +98,7 @@ export async function generateMetadata({ params }) {
       tags: post.tags || [],
       images: absoluteImages.map(url => ({
         url,
+        secureUrl: url,
         width: 1200,
         height: 630,
         type: 'image/jpeg',
@@ -100,9 +111,11 @@ export async function generateMetadata({ params }) {
       description: post.summary,
       site: '@RYDA35',
       creator: '@RYDA35',
-      images: absoluteImages,
+      images: [primaryImage, ...absoluteImages.slice(1)],
     },
     other: {
+      'twitter:image:src': primaryImage,
+      'twitter:image:alt': post.title,
       'twitter:label1': 'Written by',
       'twitter:data1': post.author || 'RYDA Team',
       'twitter:label2': 'Reading time',

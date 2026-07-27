@@ -85,7 +85,7 @@ export default function NewsroomPage() {
             <div className="nr-hero-glow nr-hero-glow-2"></div>
             <div className="hero-lines"></div>
           </div>
-          <div className="nr-hero-content reveal">
+          <div className="nr-hero-content">
             <span className="section-tag">Newsroom</span>
             <h1>Updates, Statements &amp; Reports</h1>
             <p>Stay informed with RYDA&apos;s public statements, human rights documentation, emergency updates, field reports, and campaign announcements.</p>
