@@ -22,7 +22,8 @@ function calcReadTime(text) {
 function ShareButtons({ title, url }) {
   const [copied, setCopied] = useState(false);
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
-  const freshUrl = url ? (url.includes('?') ? `${url}&v=1` : `${url}?v=1`) : url;
+  const ts = typeof window !== 'undefined' ? Date.now().toString(36) : '1';
+  const freshUrl = url ? (url.includes('?') ? `${url}&v=${ts}` : `${url}?v=${ts}`) : url;
 
   const handleNativeShare = async () => {
     try {
