@@ -18,8 +18,8 @@ let editingPostId = null;
 // ─── Helper ───────────────────────────────────────────────
 function normalizeImageObj(item) {
   if (!item) return null;
-  if (typeof item === "string") return { url: item, caption: "" };
-  return { url: item.url || "", caption: item.caption || "" };
+  if (typeof item === "string") return { url: item, caption: "", credit: "" };
+  return { url: item.url || "", caption: item.caption || "", credit: item.credit || "" };
 }
 
 // ─── DOM refs ─────────────────────────────────────────────
@@ -235,7 +235,8 @@ function renderGallery() {
         ${idx === 0 ? '<span class="gallery-cover-badge">Main Cover</span>' : ''}
       </div>
       <div class="gallery-caption-wrap">
-        <input type="text" class="gallery-caption-input" placeholder="Add photo caption..." value="${esc(imgObj.caption || '')}" data-caption-idx="${idx}">
+        <input type="text" class="gallery-caption-input" placeholder="Photo Title / Caption..." value="${esc(imgObj.caption || '')}" data-caption-idx="${idx}">
+        <input type="text" class="gallery-credit-input" placeholder="Credit / Sub-caption (e.g. Photo: RYDA)..." value="${esc(imgObj.credit || '')}" data-credit-idx="${idx}">
       </div>
       <div class="gallery-item-actions">
         ${idx !== 0 ? `<button type="button" class="gallery-btn" data-act="make-cover" data-idx="${idx}">Set Main</button>` : '<span></span>'}
@@ -254,6 +255,16 @@ function renderGallery() {
       const idx = parseInt(inp.dataset.captionIdx, 10);
       if (uploadedImages[idx]) {
         uploadedImages[idx].caption = inp.value;
+        saveDraft();
+      }
+    });
+  });
+
+  galleryGrid.querySelectorAll(".gallery-credit-input").forEach(inp => {
+    inp.addEventListener("input", () => {
+      const idx = parseInt(inp.dataset.creditIdx, 10);
+      if (uploadedImages[idx]) {
+        uploadedImages[idx].credit = inp.value;
         saveDraft();
       }
     });

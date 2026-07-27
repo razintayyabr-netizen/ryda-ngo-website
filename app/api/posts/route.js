@@ -87,13 +87,13 @@ export async function POST(request) {
 
     let imageList = Array.isArray(images)
       ? images.map(img => {
-          if (typeof img === 'string') return { url: img, caption: '' };
-          return { url: img?.url || '', caption: img?.caption || '' };
+          if (typeof img === 'string') return { url: img, caption: '', credit: '' };
+          return { url: img?.url || '', caption: img?.caption || '', credit: img?.credit || '' };
         }).filter(img => img.url)
       : [];
     if (!imageList.length && featured_image) {
       const featUrl = typeof featured_image === 'string' ? featured_image : (featured_image?.url || '');
-      if (featUrl) imageList = [{ url: featUrl, caption: featured_image?.caption || '' }];
+      if (featUrl) imageList = [{ url: featUrl, caption: featured_image?.caption || '', credit: featured_image?.credit || '' }];
     }
     const primaryUrl = typeof featured_image === 'string' ? featured_image : (featured_image?.url || (imageList.length > 0 ? imageList[0].url : null));
 
@@ -149,14 +149,14 @@ export async function PUT(request) {
 
     let imageList = Array.isArray(images)
       ? images.map(img => {
-          if (typeof img === 'string') return { url: img, caption: '' };
-          return { url: img?.url || '', caption: img?.caption || '' };
+          if (typeof img === 'string') return { url: img, caption: '', credit: '' };
+          return { url: img?.url || '', caption: img?.caption || '', credit: img?.credit || '' };
         }).filter(img => img.url)
       : (posts[idx].images || []);
 
     if (!imageList.length && featured_image) {
       const featUrl = typeof featured_image === 'string' ? featured_image : (featured_image?.url || '');
-      if (featUrl) imageList = [{ url: featUrl, caption: featured_image?.caption || '' }];
+      if (featUrl) imageList = [{ url: featUrl, caption: featured_image?.caption || '', credit: featured_image?.credit || '' }];
     }
     const primaryUrl = featured_image !== undefined
       ? (typeof featured_image === 'string' ? featured_image : (featured_image?.url || null))

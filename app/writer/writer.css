@@ -800,6 +800,24 @@ p { color: var(--on-bg-dim); line-height: 1.72; }
   box-shadow: 0 0 0 2px rgba(15,166,147,0.15);
 }
 
+.gallery-credit-input {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--line-mid);
+  border-radius: 4px;
+  color: var(--on-bg-dim);
+  font-size: 0.72rem;
+  margin-top: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.gallery-credit-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(200,149,42,0.15);
+}
+
 .gallery-btn {
   background: transparent;
   border: 1px solid var(--line);
