@@ -3,14 +3,14 @@ import Header from '@/components/Header';
 import CursorTracker from '@/components/CursorTracker';
 
 export const metadata = {
-  metadataBase: new URL('https://ryda-rohingya.org'),
+  metadataBase: new URL('https://rydarohingya.org'),
   title: {
     default: 'RYDA — Rohingya Youth Development Association',
     template: '%s — RYDA',
   },
   description: 'Rohingya Youth Development Association (RYDA) — Human rights advocacy, documentation, research, leadership, education, and humanitarian response for Rohingya communities.',
   keywords: ['RYDA', 'Rohingya', 'human rights', 'refugee advocacy', 'youth development', 'Cox\'s Bazar', 'documentation', 'humanitarian', 'NGO'],
-  authors: [{ name: 'Rohingya Youth Development Association', url: 'https://ryda-rohingya.org' }],
+  authors: [{ name: 'Rohingya Youth Development Association', url: 'https://rydarohingya.org' }],
   creator: 'Rohingya Youth Development Association',
   publisher: 'Rohingya Youth Development Association',
   openGraph: {
@@ -48,7 +48,7 @@ export const metadata = {
     },
   },
   alternates: {
-    canonical: 'https://ryda-rohingya.org',
+    canonical: 'https://rydarohingya.org',
   },
 };
 
@@ -88,7 +88,7 @@ export default function RootLayout({ children }) {
             "@type": "NGO",
             "name": "Rohingya Youth Development Association",
             "alternateName": "RYDA",
-            "url": "https://ryda-rohingya.org",
+            "url": "https://rydarohingya.org",
             "email": "ryda.rohingya@gmail.com",
             "telephone": "+880 1843-959525",
             "sameAs": [
