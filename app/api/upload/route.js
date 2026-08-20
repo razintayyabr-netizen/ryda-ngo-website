@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
 import { saveInMemoryImage } from '@/lib/imageStore';
+import { isValidWriterToken } from '@/lib/auth';
 
 let redis = null;
 let redisPromise = null;
@@ -33,8 +34,8 @@ export async function POST(request) {
     const formData = await request.formData();
     const token = formData.get('token');
 
-    if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
     }
 
     let files = formData.getAll('files');

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
+import { isValidWriterToken } from '@/lib/auth';
 
 let redis = null;
 let redisPromise = null;
@@ -136,6 +137,8 @@ export async function POST(request) {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
+            'Origin': 'https://rydarohingya.org',
+            'Referer': 'https://rydarohingya.org/',
           },
           body: JSON.stringify({
             name: name.trim(),
@@ -177,8 +180,8 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const token = request.headers.get('x-writer-token');
-    if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
     }
 
     let messages = [];

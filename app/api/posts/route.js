@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
 import STATIC_NEWS from '@/lib/staticNews';
+import { isValidWriterToken } from '@/lib/auth';
 
 let redis = null;
 let redisPromise = null;
@@ -75,8 +76,8 @@ export async function POST(request) {
     const body = await request.json();
     const token = request.headers.get('x-writer-token') || body.token;
 
-    if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
     }
 
     const { title, category, author, summary, content, featured_image, images, tags } = body;
@@ -132,8 +133,8 @@ export async function PUT(request) {
     const body = await request.json();
     const token = request.headers.get('x-writer-token') || body.token;
 
-    if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
     }
 
     const { id, title, category, author, summary, content, featured_image, images, tags } = body;

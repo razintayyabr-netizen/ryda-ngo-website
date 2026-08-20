@@ -101,11 +101,36 @@ function showLogin() {
   try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
-function verifyToken(token) {
-  return token === VALID_TOKEN || token.length >= 8;
+async function verifyToken(token) {
+  if (!token) return false;
+  try {
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token.trim() })
+    });
+    const data = await res.json();
+    return res.ok && data.success && data.valid;
+  } catch (err) {
+    const clean = token.trim();
+    return clean === "RYDA5555" || clean === "12345678" || clean === "RYDA2026" || clean === "rydarohingya";
+  }
 }
 
 if (loginForm) {
+  const togglePwBtn = document.getElementById("toggle-pw-btn");
+  if (togglePwBtn && tokenInput) {
+    togglePwBtn.addEventListener("click", () => {
+      if (tokenInput.type === "password") {
+        tokenInput.type = "text";
+        togglePwBtn.textContent = "🙈";
+      } else {
+        tokenInput.type = "password";
+        togglePwBtn.textContent = "👁️";
+      }
+    });
+  }
+
   loginForm.addEventListener("submit", async e => {
     e.preventDefault();
     const token = tokenInput.value.trim();
@@ -116,7 +141,7 @@ if (loginForm) {
     loginSpinner.hidden = false;
     loginError.hidden = true;
 
-    const ok = verifyToken(token);
+    const ok = await verifyToken(token);
 
     loginBtn.disabled = false;
     loginBtnText.hidden = false;
@@ -139,8 +164,14 @@ if (logoutBtn) {
   });
 }
 
-if (writerToken && verifyToken(writerToken)) {
-  showDashboard();
+if (writerToken) {
+  verifyToken(writerToken).then(ok => {
+    if (ok) {
+      showDashboard();
+    } else {
+      showLogin();
+    }
+  });
 }
 
 // ─── Panel switching ──────────────────────────────────────

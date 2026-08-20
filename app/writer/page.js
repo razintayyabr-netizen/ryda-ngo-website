@@ -18,16 +18,19 @@ const rawHTML = `
       <p class="login-desc">Enter your writer token to access the publishing dashboard and story management.</p>
       <form id="login-form" novalidate>
         <div class="login-field">
-          <label for="token-input">Writer Token</label>
-          <input id="token-input" type="password" placeholder="••••••••••••••••" autocomplete="current-password" required>
+          <label for="token-input">Writer Token / Password</label>
+          <div style="position:relative;display:flex;align-items:center;">
+            <input id="token-input" type="password" placeholder="Enter writer token (e.g. RYDA5555)" autocomplete="current-password" required style="padding-right:42px;width:100%;">
+            <button type="button" id="toggle-pw-btn" style="position:absolute;right:10px;background:none;border:none;color:var(--on-bg-dim);cursor:pointer;font-size:1.1rem;padding:4px;" title="Show/Hide Password">👁️</button>
+          </div>
         </div>
         <button class="btn btn-primary btn-full" type="submit" id="login-btn">
           <span id="login-btn-text">Access Dashboard</span>
           <span id="login-spinner" class="spinner" hidden></span>
         </button>
-        <p class="login-error" id="login-error" hidden>Incorrect token. Please try again.</p>
+        <p class="login-error" id="login-error" hidden>Incorrect token. Please enter the valid RYDA writer token.</p>
       </form>
-      <p class="login-hint">Default Token: <code>RYDA5555</code> (or <code>WRITER_TOKEN</code> configured in environment).</p>
+      <p class="login-hint">Default Token: <code>RYDA5555</code> (or <code>12345678</code> or <code>WRITER_TOKEN</code> in env).</p>
     </div>
   </div>
 

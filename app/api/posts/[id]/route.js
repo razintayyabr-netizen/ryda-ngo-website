@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
+import { isValidWriterToken } from '@/lib/auth';
 
 let redis = null;
 let redisPromise = null;
@@ -52,8 +53,8 @@ async function saveDynamicPosts(posts) {
 export async function DELETE(request, { params }) {
   const { id } = params;
   const token = request.headers.get('x-writer-token');
-  if (token !== 'RYDA5555' && token !== process.env.WRITER_TOKEN) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isValidWriterToken(token)) {
+    return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
   }
   if (id.startsWith('nr-')) {
     return NextResponse.json({ error: 'Cannot delete built-in posts' }, { status: 400 });
