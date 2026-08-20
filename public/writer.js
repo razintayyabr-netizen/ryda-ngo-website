@@ -223,28 +223,39 @@ function execFormat(cmd) {
     case "ol":
       document.execCommand("insertOrderedList");
       break;
-    case "storyQuote":
+    case "storyQuote": {
+      const sel = window.getSelection();
+      const selText = (sel && richEditor.contains(sel.anchorNode)) ? sel.toString().trim() : "";
+      const quoteText = selText || "Write survivor or eyewitness quotation here...";
       insertHTMLAtCursor(`
         <blockquote class="story-quote">
-          <p>"Write survivor or eyewitness quotation here..."</p>
-          <cite>— Speaker Name, Speaker Context / Location</cite>
+          <p>"${esc(quoteText)}"</p>
+          <cite>— Speaker Name, Context / Camp Location</cite>
         </blockquote>
         <p><br></p>
       `);
       break;
-    case "pullquote":
+    }
+    case "pullquote": {
+      const sel = window.getSelection();
+      const selText = (sel && richEditor.contains(sel.anchorNode)) ? sel.toString().trim() : "";
+      const quoteText = selText || "Key editorial quotation or impactful statement highlight...";
       insertHTMLAtCursor(`
         <blockquote class="pull-quote">
-          "Key editorial quotation or impactful statement highlight..."
+          "${esc(quoteText)}"
         </blockquote>
         <p><br></p>
       `);
       break;
-    case "testimony":
+    }
+    case "testimony": {
+      const sel = window.getSelection();
+      const selText = (sel && richEditor.contains(sel.anchorNode)) ? sel.toString().trim() : "";
+      const quoteText = selText || "Firsthand field report or testimony quote details here...";
       insertHTMLAtCursor(`
         <div class="testimony-card">
           <div class="testimony-badge">Eyewitness Dispatch</div>
-          <p class="testimony-text">"Firsthand field report or testimony quote details here..."</p>
+          <p class="testimony-text">"${esc(quoteText)}"</p>
           <div class="testimony-author">
             <strong>Witness / Staff Name</strong> — <span>Role or Camp Location</span>
           </div>
@@ -252,6 +263,7 @@ function execFormat(cmd) {
         <p><br></p>
       `);
       break;
+    }
     case "insertInlinePhoto":
       if (uploadedImages.length > 0) {
         const first = uploadedImages[0];
