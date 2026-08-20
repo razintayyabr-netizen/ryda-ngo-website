@@ -35,7 +35,7 @@ const rawHTML = `
   </div>
 
   <!-- ═══ WRITER DASHBOARD ═════════════════════════════════════════════════ -->
-  <div class="dashboard" id="dashboard" hidden>
+  <div class="dashboard" id="dashboard" hidden style="display: none !important;">
 
     <!-- Sidebar -->
     <aside class="sidebar">

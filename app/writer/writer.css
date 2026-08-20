@@ -36,6 +36,14 @@ html { scroll-behavior: smooth; }
 img, svg { display: block; max-width: 100%; }
 button, input, select, textarea { font: inherit; color: inherit; }
 
+[hidden],
+.dashboard[hidden],
+.login-screen[hidden],
+#dashboard[hidden],
+#login-screen[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: "DM Sans", system-ui, sans-serif;
   font-size: 0.95rem;

@@ -87,16 +87,28 @@ const galleryCount      = document.getElementById("gallery-count");
 
 // ─── Auth ─────────────────────────────────────────────────
 function showDashboard() {
-  if (loginScreen) loginScreen.hidden = true;
-  if (dashboard) dashboard.hidden = false;
+  if (loginScreen) {
+    loginScreen.hidden = true;
+    loginScreen.style.setProperty("display", "none", "important");
+  }
+  if (dashboard) {
+    dashboard.hidden = false;
+    dashboard.style.setProperty("display", "grid", "important");
+  }
   switchPanel("new-post");
   restoreDraft();
   fetchInquiriesCount();
 }
 
 function showLogin() {
-  if (loginScreen) loginScreen.hidden = false;
-  if (dashboard) dashboard.hidden = true;
+  if (loginScreen) {
+    loginScreen.hidden = false;
+    loginScreen.style.setProperty("display", "flex", "important");
+  }
+  if (dashboard) {
+    dashboard.hidden = true;
+    dashboard.style.setProperty("display", "none", "important");
+  }
   writerToken = "";
   try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
 }
