@@ -62,6 +62,14 @@ const postsList         = document.getElementById("posts-list");
 const postsSearch       = document.getElementById("posts-search");
 const refreshPostsBtn   = document.getElementById("refresh-posts");
 
+const editingBanner       = document.getElementById("editing-banner");
+const editingBannerTitle  = document.getElementById("editing-banner-title");
+const btnBackToAllPosts   = document.getElementById("btn-back-to-all-posts");
+const topBackPostsBtn     = document.getElementById("top-back-posts-btn");
+const btnCancelEdit       = document.getElementById("btn-cancel-edit");
+const editorPanelHeading  = document.getElementById("editor-panel-heading");
+const editorPanelSub      = document.getElementById("editor-panel-sub");
+
 const inquiriesList     = document.getElementById("inquiries-list");
 const inquiriesSearch   = document.getElementById("inquiries-search");
 const refreshInquiriesBtn = document.getElementById("refresh-inquiries");
@@ -579,6 +587,10 @@ function clearForm() {
   editingPostId = null;
   renderGallery();
   if (publishBtnText) publishBtnText.textContent = "Publish Post";
+  if (editingBanner) editingBanner.hidden = true;
+  if (editingBannerTitle) editingBannerTitle.textContent = "";
+  if (editorPanelHeading) editorPanelHeading.textContent = "Publish Story or Article";
+  if (editorPanelSub) editorPanelSub.textContent = "Create rich articles, human stories, testimonies, statements, and field dispatches for the RYDA Newsroom.";
   if (richEditor) { richEditor.innerHTML = ""; syncHidden(); }
   if (formFeedback) { formFeedback.textContent = ""; formFeedback.className = "form-feedback"; }
   if (isEditorPreview) togglePreview();
@@ -588,6 +600,15 @@ function clearForm() {
 
 if (draftClear) draftClear.addEventListener("click", () => {
   if (confirm("Clear the editor and discard the current draft?")) clearForm();
+});
+
+if (btnBackToAllPosts) btnBackToAllPosts.addEventListener("click", () => switchPanel("all-posts"));
+if (topBackPostsBtn) topBackPostsBtn.addEventListener("click", () => switchPanel("all-posts"));
+if (btnCancelEdit) btnCancelEdit.addEventListener("click", () => {
+  if (confirm("Exit edit mode and start writing a new post?")) {
+    clearForm();
+    showFeedback("Exited edit mode. Ready to write a new post.", "success");
+  }
 });
 
 // ─── Live Preview ─────────────────────────────────────────
@@ -836,6 +857,10 @@ async function loadPostForEdit(id) {
 
     renderGallery();
     if (publishBtnText) publishBtnText.textContent = "Update Post";
+    if (editingBanner) editingBanner.hidden = false;
+    if (editingBannerTitle) editingBannerTitle.textContent = `"${post.title}"`;
+    if (editorPanelHeading) editorPanelHeading.textContent = "Edit Story or Article";
+    if (editorPanelSub) editorPanelSub.textContent = `Editing: "${post.title}". Make your changes and click Update Post below.`;
 
     switchPanel("new-post");
     window.scrollTo({ top: 0, behavior: "smooth" });

@@ -5,41 +5,91 @@ export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [senderName, setSenderName] = useState('');
+  const [senderInfo, setSenderInfo] = useState({ name: '', email: '', subject: '', message: '' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
     const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd);
-    setSenderName(data.name || 'Friend');
+    const name = (fd.get('name') || '').toString().trim();
+    const email = (fd.get('email') || '').toString().trim();
+    const subject = (fd.get('subject') || 'Website Inquiry').toString().trim();
+    const message = (fd.get('message') || '').toString().trim();
 
+    if (!name) {
+      setError('Please enter your full name.');
+      return;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!message || message.length < 5) {
+      setError('Please write a message of at least 5 characters.');
+      return;
+    }
+
+    setLoading(true);
+    setSenderInfo({ name, email, subject, message });
+
+    let success = false;
+
+    // 1. Primary: Send to internal /api/contact endpoint
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
-        body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, subject, message }),
       });
 
       const result = await res.json();
-
       if (res.ok && result.success) {
-        setSubmitted(true);
-        e.target.reset();
-      } else {
-        setError(result.error || 'Failed to send message. Please try again or email us directly.');
+        success = true;
       }
     } catch (err) {
-      console.error('Contact form submission error:', err);
-      setError('Network connection error. Please email ryda.rohingya@gmail.com directly.');
-    } finally {
-      setLoading(false);
+      console.warn('API route failed, trying direct relay fallback...', err);
+    }
+
+    // 2. Secondary fallback: Direct FormSubmit relay to guarantee delivery if backend is unavailable
+    if (!success) {
+      try {
+        const fsRes = await fetch('https://formsubmit.co/ajax/ryda.rohingya@gmail.com', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            _replyto: email,
+            _subject: `[RYDA Contact Form] ${subject}`,
+            message,
+            _template: 'table',
+            _captcha: 'false',
+          }),
+        });
+        if (fsRes.ok) {
+          success = true;
+        }
+      } catch (fsErr) {
+        console.error('Direct relay error:', fsErr);
+      }
+    }
+
+    setLoading(false);
+
+    if (success) {
+      setSubmitted(true);
+      try { e.target.reset(); } catch {}
+    } else {
+      setError('Could not send message automatically. Please click "Direct Email" below or email ryda.rohingya@gmail.com directly.');
     }
   };
 
   if (submitted) {
+    const mailtoHref = `mailto:ryda.rohingya@gmail.com?subject=${encodeURIComponent(senderInfo.subject)}&body=${encodeURIComponent(senderInfo.message + '\n\n-- From ' + senderInfo.name + ' (' + senderInfo.email + ')')}`;
     return (
       <div className="is-contact-success" role="alert">
         <div className="success-icon-wrap">
@@ -50,7 +100,7 @@ export default function ContactForm() {
         </div>
         <h3>Message Sent Successfully!</h3>
         <p>
-          Thank you, <strong>{senderName}</strong>. Your message has been sent to our team at <code>ryda.rohingya@gmail.com</code>. We will get back to you promptly.
+          Thank you, <strong>{senderInfo.name}</strong>. Your message has been delivered to our team at <code>ryda.rohingya@gmail.com</code>. We will get back to you promptly.
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
           <button
@@ -62,7 +112,7 @@ export default function ContactForm() {
             Send Another Message
           </button>
           <a
-            href="mailto:ryda.rohingya@gmail.com"
+            href={mailtoHref}
             className="btn btn-primary btn-sm"
           >
             Open in Email App ✉️

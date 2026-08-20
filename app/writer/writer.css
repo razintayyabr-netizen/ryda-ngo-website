@@ -302,8 +302,51 @@ p { color: var(--on-bg-dim); line-height: 1.72; }
 .panel { display: none; padding: clamp(28px, 4vw, 52px); max-width: 900px; }
 .panel.is-active { display: block; }
 
-.panel-header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.panel-header { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
 .panel-header h1 { color: #fff; margin-bottom: 8px; }
+
+/* ─── Editing Banner ────────────────────────────────────── */
+.editing-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  background: rgba(200, 149, 42, 0.12);
+  border: 1px solid rgba(200, 149, 42, 0.35);
+  border-left: 4px solid #C8952A;
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  animation: fadeIn 0.25s ease-out;
+}
+.editing-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.editing-badge {
+  background: #C8952A;
+  color: #0E1117;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.editing-banner-title {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.editing-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 /* ─── EDITOR ───────────────────────────────────────────── */
 .editor-layout { display: grid; gap: 0; }

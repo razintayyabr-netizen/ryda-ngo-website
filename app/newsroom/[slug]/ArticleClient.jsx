@@ -278,6 +278,14 @@ export default function ArticleClient({ post: preloadedPost }) {
   const [articleUrl, setArticleUrl] = useState('');
   const [activeModalIdx, setActiveModalIdx] = useState(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [isWriter, setIsWriter] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = sessionStorage.getItem('ryda_writer_token');
+      setIsWriter(!!token);
+    }
+  }, []);
 
   const rawImages = post
     ? (Array.isArray(post.images) && post.images.length > 0
@@ -433,10 +441,28 @@ export default function ArticleClient({ post: preloadedPost }) {
 
       <section className="article-hero">
         <div className="article-container">
-          <div className="article-breadcrumb">
-            <Link href="/">Home</Link>
-            <span>/</span>
-            <Link href="/newsroom">Newsroom</Link>
+          <div className="article-top-nav">
+            <div className="article-breadcrumb">
+              <Link href="/">Home</Link>
+              <span>/</span>
+              <Link href="/newsroom">Newsroom</Link>
+            </div>
+            <div className="article-top-actions">
+              <Link href="/newsroom" className="article-back-nav-btn">
+                <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                  <path d="M15 10H5M5 10L10 5M5 10L10 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>Back to Newsroom</span>
+              </Link>
+              {isWriter && (
+                <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="article-edit-nav-btn">
+                  <svg viewBox="0 0 20 20" fill="none" width="15" height="15">
+                    <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Edit Article</span>
+                </Link>
+              )}
+            </div>
           </div>
           <div className="article-meta">
             <span className="article-category-badge">{post.category}</span>
@@ -521,6 +547,20 @@ export default function ArticleClient({ post: preloadedPost }) {
           )}
 
           <ShareButtons title={post.title} url={articleUrl} />
+
+          <div className="article-bottom-nav">
+            <Link href="/newsroom" className="btn btn-outline">
+              ← Back to All Articles &amp; Stories
+            </Link>
+            {isWriter && (
+              <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="btn btn-primary" style={{ marginLeft: '12px' }}>
+                <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                  <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                </svg>
+                <span>Edit this Article</span>
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 

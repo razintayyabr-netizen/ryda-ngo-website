@@ -81,8 +81,11 @@ export async function POST(request) {
       inMemoryMessages.unshift(messageObj);
     }
 
-    // 2. Email delivery if SMTP / Resend credentials exist
+    // 2. Multi-Tier Real Email Delivery to ryda.rohingya@gmail.com
     let emailSent = false;
+    let emailMethod = 'none';
+
+    // Tier 1: Resend API (if RESEND_API_KEY is configured in env)
     if (process.env.RESEND_API_KEY) {
       try {
         const res = await fetch('https://api.resend.com/emails', {
@@ -92,26 +95,65 @@ export async function POST(request) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'RYDA Website <onboarding@resend.dev>',
+            from: 'RYDA Contact <onboarding@resend.dev>',
             to: ['ryda.rohingya@gmail.com'],
-            reply_to: email,
-            subject: `[RYDA Contact] ${subject || 'New message from ' + name}`,
+            reply_to: email.trim(),
+            subject: `[RYDA Website Inquiry] ${subject || 'New message from ' + name}`,
             html: `
-              <div style="font-family: sans-serif; padding: 20px; max-width: 600px; color: #111;">
-                <h2 style="color: #0b4d41; border-bottom: 2px solid #0b4d41; padding-bottom: 8px;">New Contact Form Message</h2>
-                <p><strong>From:</strong> ${name} &lt;<a href="mailto:${email}">${email}</a>&gt;</p>
-                <p><strong>Date:</strong> ${new Date().toLocaleString('en-US')}</p>
-                <p><strong>Subject:</strong> ${subject || 'General Inquiry'}</p>
-                <div style="background: #f4f6f8; padding: 16px; border-left: 4px solid #0b4d41; border-radius: 4px; margin-top: 16px;">
-                  <p style="white-space: pre-wrap; margin: 0; line-height: 1.6;">${message}</p>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; max-width: 600px; color: #1e293b; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div style="border-bottom: 3px solid #0FA693; padding-bottom: 12px; margin-bottom: 16px;">
+                  <h2 style="color: #0FA693; margin: 0; font-size: 20px;">New Message from RYDA Website</h2>
+                  <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Received on ${new Date().toUTCString()}</p>
+                </div>
+                <p style="margin: 8px 0;"><strong>Sender Name:</strong> ${name}</p>
+                <p style="margin: 8px 0;"><strong>Email:</strong> <a href="mailto:${email}" style="color: #0FA693; font-weight: 600;">${email}</a></p>
+                <p style="margin: 8px 0;"><strong>Subject:</strong> ${subject || 'General Inquiry'}</p>
+                <div style="margin-top: 16px; background: #f8fafc; padding: 16px; border-left: 4px solid #0FA693; border-radius: 4px;">
+                  <p style="font-weight: 600; color: #334155; margin: 0 0 8px 0; font-size: 14px;">Message Body:</p>
+                  <p style="white-space: pre-wrap; line-height: 1.6; color: #1e293b; margin: 0;">${message}</p>
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                  <a href="mailto:${email}?subject=Re:%20${encodeURIComponent(subject || 'RYDA Inquiry')}" style="display: inline-block; background: #0FA693; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">Reply to ${name}</a>
                 </div>
               </div>
             `,
           }),
         });
-        if (res.ok) emailSent = true;
+        if (res.ok) {
+          emailSent = true;
+          emailMethod = 'resend';
+        }
       } catch (e) {
         console.error('Failed to send email via Resend:', e);
+      }
+    }
+
+    // Tier 2: FormSubmit Direct Relay (delivers directly to ryda.rohingya@gmail.com without API keys)
+    if (!emailSent) {
+      try {
+        const fsRes = await fetch('https://formsubmit.co/ajax/ryda.rohingya@gmail.com', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            _replyto: email.trim(),
+            _subject: `[RYDA Contact Form] ${subject || 'New Message from ' + name}`,
+            subject: subject || 'Website Inquiry',
+            message: message.trim(),
+            _template: 'table',
+            _captcha: 'false',
+          }),
+        });
+        if (fsRes.ok) {
+          emailSent = true;
+          emailMethod = 'formsubmit';
+        }
+      } catch (fsErr) {
+        console.warn('FormSubmit relay warning:', fsErr);
       }
     }
 
@@ -119,6 +161,7 @@ export async function POST(request) {
       success: true,
       message: 'Thank you! Your message has been received and sent to ryda.rohingya@gmail.com.',
       emailSent,
+      emailMethod,
       id: messageObj.id,
     });
   } catch (error) {

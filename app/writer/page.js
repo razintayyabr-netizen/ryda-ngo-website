@@ -82,8 +82,31 @@ const rawHTML = `
       <!-- ─── NEW POST PANEL ──────────────────────────────────────── -->
       <div class="panel is-active" id="panel-new-post">
         <div class="panel-header">
-          <h1>Publish Story or Article</h1>
-          <p>Create rich articles, human stories, testimonies, statements, and field dispatches for the RYDA Newsroom.</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h1 id="editor-panel-heading">Publish Story or Article</h1>
+              <p id="editor-panel-sub">Create rich articles, human stories, testimonies, statements, and field dispatches for the RYDA Newsroom.</p>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="top-back-posts-btn" style="margin-top:4px;">
+              ← Back to All Posts
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Edit Banner -->
+        <div class="editing-banner" id="editing-banner" hidden>
+          <div class="editing-banner-left">
+            <span class="editing-badge">✏️ Editing Post</span>
+            <span class="editing-banner-title" id="editing-banner-title"></span>
+          </div>
+          <div class="editing-banner-actions">
+            <button type="button" class="btn btn-outline btn-sm" id="btn-back-to-all-posts">
+              ← Back to All Posts
+            </button>
+            <button type="button" class="btn btn-ghost-dark btn-sm" id="btn-cancel-edit">
+              ✕ Cancel Edit (Start New Post)
+            </button>
+          </div>
         </div>
 
         <div class="editor-layout">
