@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import ScrollReveal from '@/components/ScrollReveal';
 import ContactForm from '@/components/ContactForm';
 import BackToTop from '@/components/BackToTop';
+import Newsroom from '@/components/Newsroom';
 import Link from 'next/link';
 
 const values = [
@@ -234,6 +235,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Newsroom & Stories */}
+      <Newsroom />
 
       {/* CTA */}
       <section className="section is-cta">

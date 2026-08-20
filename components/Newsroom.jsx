@@ -2,57 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-
-const STATIC_NEWS = [
-  {
-    id: "nr-1",
-    title: "RYDA Releases Documentation Brief on Restrictions on Fundamental Freedoms",
-    category: "Report",
-    author: "RYDA Team",
-    summary: "A new RYDA briefing highlights restrictions on expression, movement, and association affecting Rohingya communities across camps and crisis zones.",
-    date: "2026-03-18T12:00:00Z",
-  },
-  {
-    id: "nr-2",
-    title: "Youth Leadership Training Expands Community Representation",
-    category: "Leadership",
-    author: "RYDA Team",
-    summary: "Leadership workshops are helping Rohingya youths, girls, and women strengthen advocacy, organization, and public engagement skills.",
-    date: "2026-03-10T12:00:00Z",
-  },
-  {
-    id: "nr-3",
-    title: "RYDA Submits Briefing to UN Special Rapporteur",
-    category: "Advocacy",
-    author: "RYDA Advocacy Unit",
-    summary: "RYDA submitted a detailed briefing to the UN Special Rapporteur outlining documented violations and urging stronger international protection measures.",
-    date: "2026-02-28T12:00:00Z",
-  },
-  {
-    id: "nr-4",
-    title: "Emergency Response: Food and Medical Aid in Cox's Bazar",
-    category: "Emergency",
-    author: "RYDA Relief Team",
-    summary: "Following flooding, RYDA coordinated emergency food parcels, hygiene kits, and basic medical support for affected families.",
-    date: "2026-02-14T12:00:00Z",
-  },
-  {
-    id: "nr-5",
-    title: "RYDA Issues Public Statement on Arbitrary Detention Reports",
-    category: "Statement",
-    author: "RYDA Team",
-    summary: "RYDA is deeply concerned by verified reports of arbitrary detention and calls on authorities to uphold international human rights standards.",
-    date: "2026-01-30T12:00:00Z",
-  },
-  {
-    id: "nr-6",
-    title: "New Research Report: Education Barriers Facing Rohingya Youth",
-    category: "Report",
-    author: "RYDA Research Unit",
-    summary: "A new RYDA publication documents systemic barriers preventing Rohingya children from accessing quality education, with policy recommendations.",
-    date: "2026-01-18T12:00:00Z",
-  },
-];
+import STATIC_NEWS from '@/lib/staticNews';
 
 function fmtDate(iso) {
   try {
@@ -71,7 +21,7 @@ export default function Newsroom() {
 
   useEffect(() => {
     // Check if writer is logged in
-    const token = sessionStorage.getItem('ryda_writer_token');
+    const token = typeof window !== 'undefined' ? sessionStorage.getItem('ryda_writer_token') : null;
     setIsWriter(!!token);
 
     async function loadNews() {
@@ -79,16 +29,10 @@ export default function Newsroom() {
         const res = await fetch('/api/posts');
         if (res.ok) {
           const data = await res.json();
-          const apiPosts = (data.posts || []).map(p => ({
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            author: p.author,
-            summary: p.summary,
-            date: p.date,
-            featured_image: p.featured_image,
-          }));
-          setAllNews([...apiPosts, ...STATIC_NEWS]);
+          const list = Array.isArray(data) ? data : (data.posts || []);
+          if (list.length > 0) {
+            setAllNews(list);
+          }
         }
       } catch (err) {
         // Fallback to static
@@ -99,11 +43,19 @@ export default function Newsroom() {
     loadNews();
   }, []);
 
+  const matchesCategory = (postCat, filter) => {
+    if (!filter) return true;
+    if (!postCat) return false;
+    const c1 = postCat.toLowerCase().replace(/s$/, '').trim();
+    const c2 = filter.toLowerCase().replace(/s$/, '').trim();
+    return c1 === c2 || postCat.toLowerCase() === filter.toLowerCase();
+  };
+
   const filteredNews = activeFilter
-    ? allNews.filter(n => n.category === activeFilter)
+    ? allNews.filter(n => matchesCategory(n.category, activeFilter))
     : allNews;
 
-  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const displayedNews = sortedNews.slice(0, 6);
 
   useEffect(() => {
@@ -132,16 +84,17 @@ export default function Newsroom() {
       <div className="section-header newsroom-header">
         <div>
           <span className="section-tag">Newsroom</span>
-          <h2>Latest updates, statements &amp; field reports.</h2>
+          <h2>Latest updates, stories &amp; field reports.</h2>
         </div>
-        <p>Stay informed with RYDA&apos;s public statements, human rights bulletins, emergency updates, and campaign announcements.</p>
+        <p>Stay informed with RYDA&apos;s human rights documentation, survivor stories, emergency updates, and public statements.</p>
       </div>
 
       <div className="newsroom-tabs" id="newsroom-tabs" role="tablist">
         {[
           { label: 'All', filter: '' },
-          { label: 'Statements', filter: 'Statement' },
-          { label: 'Reports', filter: 'Report' },
+          { label: 'Stories', filter: 'Stories' },
+          { label: 'Reports', filter: 'Reports' },
+          { label: 'Statements', filter: 'Statements' },
           { label: 'Emergency', filter: 'Emergency' },
           { label: 'Advocacy', filter: 'Advocacy' },
           { label: 'Leadership', filter: 'Leadership' },
@@ -174,41 +127,46 @@ export default function Newsroom() {
           <div className="newsroom-empty"><p>No updates in this category yet.</p></div>
         )}
 
-        {!loading && displayedNews.map(item => (
-          <div key={item.id} className="news-card reveal">
-            {isWriter && (
-              <div className="news-card-actions">
-                <Link href={`/writer?edit=${encodeURIComponent(item.id)}`} className="news-edit-btn">
-                  <svg viewBox="0 0 20 20" fill="none" width="13" height="13"><path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
-                  Edit
-                </Link>
-              </div>
-            )}
-            <Link href={`/newsroom/${item.id}`} className="news-card-link" style={{ textDecoration: 'none' }}>
-              {item.featured_image && (
-                <div className="news-card-image-wrap">
-                  <img src={item.featured_image} alt={item.title} loading="lazy" />
+        {!loading && displayedNews.map(item => {
+          const isStory = (item.category || '').toLowerCase().includes('stor');
+          const href = `/newsroom/${item.slug || item.id}`;
+          return (
+            <div key={item.id} className={`news-card reveal ${isStory ? 'is-story-card' : ''}`}>
+              {isWriter && (
+                <div className="news-card-actions">
+                  <Link href={`/writer?edit=${encodeURIComponent(item.id)}`} className="news-edit-btn">
+                    <svg viewBox="0 0 20 20" fill="none" width="13" height="13"><path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+                    Edit
+                  </Link>
                 </div>
               )}
-              <span className="news-badge">{item.category}</span>
-              <h3>{item.title}</h3>
-              <p>{item.summary}</p>
-              <div className="news-meta">
-                <span className="news-meta-author">{item.author}</span>
-                <span className="news-meta-date">{fmtDate(item.date)}</span>
-              </div>
-              <span className="news-card-readmore">
-                Read Article →
-              </span>
-            </Link>
-          </div>
-        ))}
+              <Link href={href} className="news-card-link" style={{ textDecoration: 'none' }}>
+                {item.featured_image && (
+                  <div className="news-card-image-wrap">
+                    <img src={item.featured_image} alt={item.title} loading="lazy" />
+                    {isStory && <span className="story-ribbon">📖 Story</span>}
+                  </div>
+                )}
+                <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
+                <h3>{item.title}</h3>
+                <p>{item.summary}</p>
+                <div className="news-meta">
+                  <span className="news-meta-author">{item.author}</span>
+                  <span className="news-meta-date">{fmtDate(item.date)}</span>
+                </div>
+                <span className="news-card-readmore">
+                  {isStory ? 'Read Full Story →' : 'Read Article →'}
+                </span>
+              </Link>
+            </div>
+          );
+        })}
       </div>
 
       <div className="newsroom-footer">
         <Link className="btn btn-primary" href="/newsroom">
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><rect x="3" y="4" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M6.5 8.5H13.5M6.5 12H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          View All Articles
+          View All Articles &amp; Stories
         </Link>
         <Link className="btn btn-outline" href="/writer" target="_blank" style={{ marginLeft: 16 }}>
           <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg>

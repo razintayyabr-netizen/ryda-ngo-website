@@ -150,7 +150,12 @@ export async function generateMetadata({ params }) {
 }
 
 export async function generateStaticParams() {
-  return STATIC_NEWS.map(post => ({ slug: post.id }));
+  const params = [];
+  for (const post of STATIC_NEWS) {
+    if (post.id) params.push({ slug: post.id });
+    if (post.slug) params.push({ slug: post.slug });
+  }
+  return params;
 }
 
 export default async function ArticlePage({ params }) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
+import { getInMemoryImage } from '@/lib/imageStore';
 
 let redis = null;
 let redisPromise = null;
@@ -26,14 +27,24 @@ async function getRedis() {
 
 export async function GET(request, { params }) {
   const rawId = params.id || '';
-  const id = rawId.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '');
-  
-  const r = await getRedis();
-  if (!r) {
-    return NextResponse.json({ error: 'Storage unavailable' }, { status: 500 });
+  const id = rawId.replace(/\.(jpg|jpeg|png|webp|gif|avif)$/i, '');
+
+  let dataUrl = null;
+
+  try {
+    const r = await getRedis();
+    if (r) {
+      dataUrl = await r.get(`ryda:image:${id}`);
+    }
+  } catch (e) {
+    console.warn('Redis read failed:', e);
   }
 
-  const dataUrl = await r.get(`ryda:image:${id}`);
+  // Fallback to in-memory store
+  if (!dataUrl) {
+    dataUrl = getInMemoryImage(id);
+  }
+
   if (!dataUrl) {
     return NextResponse.json({ error: 'Image not found' }, { status: 404 });
   }

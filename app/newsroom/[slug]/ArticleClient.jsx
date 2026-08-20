@@ -362,6 +362,33 @@ export default function ArticleClient({ post: preloadedPost }) {
     return () => { cancelled = true; };
   }, [slug, preloadedPost]);
 
+  // Handle clicking on any inline image in article body to open in Lightbox
+  useEffect(() => {
+    if (!post) return;
+    const timer = setTimeout(() => {
+      const bodyEl = document.querySelector('.article-body');
+      if (!bodyEl) return;
+      const inlineImgs = bodyEl.querySelectorAll('img');
+      inlineImgs.forEach(img => {
+        img.style.cursor = 'pointer';
+        img.title = 'Click to enlarge photo';
+        img.onclick = () => {
+          const src = img.src;
+          const fig = img.closest('figure');
+          const cap = fig ? (fig.querySelector('figcaption')?.textContent || '') : '';
+          const existingIdx = images.findIndex(im => im.url === src || src.endsWith(im.url));
+          if (existingIdx !== -1) {
+            setActiveModalIdx(existingIdx);
+          } else {
+            images.push({ url: src, caption: cap, credit: '' });
+            setActiveModalIdx(images.length - 1);
+          }
+        };
+      });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [post, images]);
+
   const handlePrev = () => {
     if (activeModalIdx === null) return;
     setActiveModalIdx((activeModalIdx - 1 + images.length) % images.length);

@@ -1240,19 +1240,254 @@ p { color: var(--color-text-muted); margin-bottom: var(--sp-md); }
 .article-body li { margin-bottom: 0.5rem; line-height: 1.7; color: var(--color-text); }
 .article-body blockquote {
   border-left: 4px solid var(--color-accent);
-  padding: 1rem 1.5rem;
-  margin: 2rem 0;
+  padding: 1.25rem 1.75rem;
+  margin: 2.25rem 0;
   background: rgba(136,14,79,0.05);
   border-radius: 0 var(--r-md) var(--r-md) 0;
   font-style: italic;
-  color: var(--color-text-muted);
+  color: var(--color-text);
+  font-size: 1.1rem;
+  line-height: 1.75;
 }
+
+/* ─── World-Class Story Quotations ───────────────────────── */
+.article-body blockquote.story-quote {
+  position: relative;
+  border-left: 4px solid #0FA693;
+  padding: 1.5rem 1.75rem 1.5rem 3.5rem;
+  margin: 2.5rem 0;
+  background: linear-gradient(135deg, rgba(15,166,147,0.08) 0%, rgba(11,77,65,0.04) 100%);
+  border-radius: 0 16px 16px 0;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  font-style: normal;
+}
+.article-body blockquote.story-quote::before {
+  content: "“";
+  position: absolute;
+  left: 14px;
+  top: 6px;
+  font-family: Georgia, "Playfair Display", serif;
+  font-size: 3.8rem;
+  line-height: 1;
+  color: #0FA693;
+  opacity: 0.85;
+}
+.article-body blockquote.story-quote p {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 1.14rem;
+  font-style: italic;
+  line-height: 1.75;
+  color: var(--color-text);
+  margin-bottom: 0.75rem;
+}
+.article-body blockquote.story-quote cite {
+  display: block;
+  font-family: "DM Sans", sans-serif;
+  font-style: normal;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0B4D41;
+  letter-spacing: 0.01em;
+  margin-top: 10px;
+}
+
+/* Editorial Pullquote */
+.article-body blockquote.pull-quote {
+  text-align: center;
+  border-left: none;
+  border-top: 2px solid rgba(11,77,65,0.25);
+  border-bottom: 2px solid rgba(11,77,65,0.25);
+  padding: 1.75rem 2rem;
+  margin: 3rem auto;
+  max-width: 88%;
+  background: transparent;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.35rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #0B4D41;
+  border-radius: 0;
+}
+
+/* Eyewitness Testimony Card */
+.article-body .testimony-card {
+  background: #ffffff;
+  border: 1px solid rgba(11,77,65,0.18);
+  border-left: 5px solid #C8952A;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  margin: 2.25rem 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+}
+.article-body .testimony-badge {
+  display: inline-block;
+  background: rgba(200,149,42,0.15);
+  color: #9a6f17;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+.article-body .testimony-text {
+  font-size: 1.05rem;
+  font-style: italic;
+  line-height: 1.75;
+  color: #1a2232;
+  margin-bottom: 12px;
+}
+.article-body .testimony-author {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid rgba(0,0,0,0.07);
+  padding-top: 10px;
+}
+.article-body .testimony-author strong {
+  color: #0B4D41;
+  font-weight: 700;
+}
+
+/* In-body / Inline Image Figures */
+.article-body figure.article-inline-image {
+  margin: 2.5rem 0;
+  padding: 0;
+  text-align: center;
+}
+.article-body figure.article-inline-image img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+  margin: 0 auto;
+}
+.article-body figure.article-inline-image figcaption {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  font-family: "DM Sans", sans-serif;
+  text-align: center;
+  padding: 0 1rem;
+}
+.article-body figure.article-inline-image .photo-credit {
+  display: inline-block;
+  color: #C8952A;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
 .article-body strong { color: var(--color-text); font-weight: 600; }
 .article-body b { color: var(--color-text); font-weight: 700; }
 .article-body a { color: var(--color-primary); text-decoration: underline; }
 .article-body a:hover { color: var(--color-primary-light); }
 .article-body img { max-width: 100%; border-radius: var(--r-md); margin: 1.5rem 0; }
 .article-body hr { border: none; border-top: 1px solid var(--color-border); margin: 2rem 0; }
+
+/* Newsroom Story Badge & Card Enhancements */
+.badge-story {
+  background: rgba(15, 166, 147, 0.16) !important;
+  color: #0d6357 !important;
+  font-weight: 700 !important;
+}
+.is-story-card {
+  border-color: rgba(15, 166, 147, 0.3) !important;
+}
+.story-ribbon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(11, 77, 65, 0.9);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Contact Form Enhancements */
+.is-contact-success {
+  background: rgba(15, 166, 147, 0.08);
+  border: 1px solid rgba(15, 166, 147, 0.3);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(15, 166, 147, 0.08);
+}
+.is-contact-success .success-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.is-contact-success h3 {
+  font-size: 1.35rem;
+  color: #0b4d41;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.is-contact-success p {
+  color: var(--color-text);
+  line-height: 1.65;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.is-contact-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(224, 82, 96, 0.1);
+  border: 1px solid rgba(224, 82, 96, 0.3);
+  color: #e05260;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+}
+.is-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.is-form-actions .is-submit-btn {
+  flex: 1;
+  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.is-direct-mail-btn {
+  padding: 10px 18px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  border: 1px solid rgba(11, 77, 65, 0.25);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.is-direct-mail-btn:hover {
+  background: rgba(11, 77, 65, 0.08);
+  border-color: var(--color-primary);
+}
+.form-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
 
 /* Share */
 .share-section { border-top: 1px solid var(--color-border); padding-top: var(--sp-xl); margin-top: var(--sp-2xl); }

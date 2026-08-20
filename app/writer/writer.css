@@ -875,3 +875,166 @@ p { color: var(--on-bg-dim); line-height: 1.72; }
   object-fit: cover;
 }
 
+/* ─── World-Class Dropzone & Upload Styles ───────────────── */
+.upload-dropzone {
+  border: 2px dashed rgba(15,166,147,0.35);
+  background: rgba(15,166,147,0.04);
+  border-radius: var(--r-md);
+  padding: 24px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.upload-dropzone:hover, .upload-dropzone.is-dragover {
+  border-color: var(--teal);
+  background: rgba(15,166,147,0.10);
+  transform: translateY(-1px);
+}
+.dropzone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.dropzone-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(15,166,147,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dropzone-text {
+  font-size: 0.95rem;
+  color: var(--on-bg);
+}
+.dropzone-link {
+  color: var(--teal);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.dropzone-hint {
+  font-size: 0.78rem;
+  color: var(--on-bg-dim2);
+  max-width: 440px;
+}
+.image-url-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.image-url-row input {
+  flex: 1;
+}
+
+/* ─── Tool Buttons for Quotes & Photos ──────────────────── */
+.tool-quote-btn {
+  background: rgba(15,166,147,0.10) !important;
+  color: rgba(93,221,208,0.95) !important;
+  border-color: rgba(15,166,147,0.25) !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tool-quote-btn:hover {
+  background: rgba(15,166,147,0.22) !important;
+}
+.tool-photo-btn {
+  background: rgba(200,149,42,0.12) !important;
+  color: #e5b34d !important;
+  border-color: rgba(200,149,42,0.3) !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tool-photo-btn:hover {
+  background: rgba(200,149,42,0.24) !important;
+}
+.gallery-btn-insert {
+  background: rgba(200,149,42,0.15) !important;
+  color: #e5b34d !important;
+  border-color: rgba(200,149,42,0.35) !important;
+  font-weight: 600;
+}
+.gallery-btn-insert:hover {
+  background: rgba(200,149,42,0.3) !important;
+  color: #fff !important;
+}
+
+/* ─── Inquiries & Messages Panel ────────────────────────── */
+.badge-count {
+  margin-left: auto;
+  background: #0FA693;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.inquiries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.inquiry-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-mid);
+  border-left: 4px solid #0FA693;
+  border-radius: var(--r-md);
+  padding: 20px 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.inquiry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+.inquiry-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+}
+.inquiry-email {
+  font-size: 0.85rem;
+  color: var(--teal);
+  text-decoration: none;
+}
+.inquiry-email:hover {
+  text-decoration: underline;
+}
+.inquiry-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.inquiry-date {
+  font-family: "DM Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--on-bg-dim2);
+}
+.inquiry-subject {
+  font-size: 0.92rem;
+  color: var(--on-bg);
+  margin-bottom: 8px;
+}
+.inquiry-body {
+  font-size: 0.94rem;
+  line-height: 1.7;
+  color: var(--on-bg-dim);
+  background: var(--bg-input);
+  padding: 14px 16px;
+  border-radius: var(--r-sm);
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+}
+
+

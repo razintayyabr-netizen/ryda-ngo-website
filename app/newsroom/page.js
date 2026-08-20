@@ -25,10 +25,10 @@ export default function NewsroomPage() {
         const res = await fetch('/api/posts');
         if (res.ok) {
           const data = await res.json();
-          setAllNews(data);
+          setAllNews(Array.isArray(data) ? data : (data.posts || []));
         }
       } catch (err) {
-        // API failed, use empty — static posts are included via API
+        // API failed, static will be handled or fallback
       } finally {
         setLoading(false);
       }
@@ -43,15 +43,31 @@ export default function NewsroomPage() {
     return () => clearTimeout(safetyTimer);
   }, []);
 
+  const matchesCategory = (postCat, filter) => {
+    if (!filter) return true;
+    if (!postCat) return false;
+    const c1 = postCat.toLowerCase().replace(/s$/, '').trim();
+    const c2 = filter.toLowerCase().replace(/s$/, '').trim();
+    if (c1 === c2) return true;
+    if ((c2 === 'media' || c2 === 'media coverage') && (c1 === 'media' || c1 === 'media coverage')) return true;
+    return postCat.toLowerCase() === filter.toLowerCase();
+  };
+
   const filteredNews = allNews
-    .filter(n => !activeFilter || n.category === activeFilter)
+    .filter(n => matchesCategory(n.category, activeFilter))
     .filter(n => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
-      return n.title.toLowerCase().includes(q) || n.summary.toLowerCase().includes(q) || n.category.toLowerCase().includes(q);
+      return (
+        (n.title && n.title.toLowerCase().includes(q)) ||
+        (n.summary && n.summary.toLowerCase().includes(q)) ||
+        (n.category && n.category.toLowerCase().includes(q)) ||
+        (n.author && n.author.toLowerCase().includes(q)) ||
+        (Array.isArray(n.tags) && n.tags.some(t => t.toLowerCase().includes(q)))
+      );
     });
 
-  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   useEffect(() => {
     if (!loading && gridRef.current && "IntersectionObserver" in window) {
@@ -72,8 +88,23 @@ export default function NewsroomPage() {
     }
   }, [loading, sortedNews]);
 
-  const categories = ['', 'Article', 'Statement', 'Report', 'Emergency', 'Advocacy', 'Leadership', 'Research', 'Documentation', 'Humanitarian', 'Training', 'Field Report', 'Media Coverage', 'Campaign'];
-  const categoryLabels = { '': 'All', 'Article': 'Articles', 'Statement': 'Statements', 'Report': 'Reports', 'Emergency': 'Emergency', 'Advocacy': 'Advocacy', 'Leadership': 'Leadership', 'Research': 'Research', 'Documentation': 'Documentation', 'Humanitarian': 'Humanitarian', 'Training': 'Training', 'Field Report': 'Field Reports', 'Media Coverage': 'Media', 'Campaign': 'Campaigns' };
+  const categories = [
+    { key: '', label: 'All' },
+    { key: 'Stories', label: 'Stories' },
+    { key: 'Articles', label: 'Articles' },
+    { key: 'Statements', label: 'Statements' },
+    { key: 'Reports', label: 'Reports' },
+    { key: 'Emergency', label: 'Emergency' },
+    { key: 'Advocacy', label: 'Advocacy' },
+    { key: 'Leadership', label: 'Leadership' },
+    { key: 'Research', label: 'Research' },
+    { key: 'Documentation', label: 'Documentation' },
+    { key: 'Humanitarian', label: 'Humanitarian' },
+    { key: 'Training', label: 'Training' },
+    { key: 'Field Reports', label: 'Field Reports' },
+    { key: 'Media', label: 'Media' },
+    { key: 'Campaigns', label: 'Campaigns' },
+  ];
 
   return (
     <>
@@ -88,24 +119,24 @@ export default function NewsroomPage() {
           <div className="nr-hero-content">
             <span className="section-tag">Newsroom</span>
             <h1>Updates, Statements &amp; Reports</h1>
-            <p>Stay informed with RYDA&apos;s public statements, human rights documentation, emergency updates, field reports, and campaign announcements.</p>
+            <p>Stay informed with RYDA&apos;s public statements, human rights documentation, survivor stories, emergency updates, and campaign announcements.</p>
           </div>
         </section>
 
         {/* Filters + Search */}
         <section className="nr-controls">
           <div className="nr-controls-inner">
-            <div className="nr-tabs" role="tablist">
+            <div className="nr-tabs" role="tablist" aria-label="Category filters">
               {categories.map(cat => (
                 <button
-                  key={cat}
-                  className={`tab ${activeFilter === cat ? 'is-active' : ''}`}
+                  key={cat.key}
+                  className={`tab ${activeFilter === cat.key ? 'is-active' : ''}`}
                   type="button"
                   role="tab"
-                  aria-selected={activeFilter === cat}
-                  onClick={() => setActiveFilter(cat)}
+                  aria-selected={activeFilter === cat.key}
+                  onClick={() => setActiveFilter(cat.key)}
                 >
-                  {categoryLabels[cat]}
+                  {cat.label}
                 </button>
               ))}
             </div>
@@ -114,7 +145,7 @@ export default function NewsroomPage() {
               <input
                 className="nr-search"
                 type="search"
-                placeholder="Search articles…"
+                placeholder="Search articles & stories…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -138,33 +169,35 @@ export default function NewsroomPage() {
             {!loading && sortedNews.length === 0 && (
               <div className="nr-empty">
                 <svg viewBox="0 0 24 24" fill="none" width="48" height="48"><path d="M9 12H15M12 9V15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/></svg>
-                <p>No articles found matching your criteria.</p>
+                <p>No articles or stories found matching your criteria.</p>
               </div>
             )}
 
             {!loading && sortedNews.map((item, idx) => {
               const href = `/newsroom/${item.slug || item.id}`;
+              const isStory = (item.category || '').toLowerCase().includes('stor');
               return (
-              <Link href={href} key={item.id} className="nr-card reveal" style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
-                {item.featured_image && (
-                  <div className="nr-card-image">
-                    <img src={item.featured_image} alt="" loading="lazy" />
+                <Link href={href} key={item.id} className={`nr-card reveal ${isStory ? 'is-story-card' : ''}`} style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
+                  {item.featured_image && (
+                    <div className="nr-card-image">
+                      <img src={item.featured_image} alt="" loading="lazy" />
+                      {isStory && <span className="story-ribbon">📖 Story</span>}
+                    </div>
+                  )}
+                  <div className="nr-card-body">
+                    <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
+                    <h3>{item.title}</h3>
+                    <p>{item.summary}</p>
+                    <div className="nr-card-footer">
+                      <span className="nr-card-author">{item.author}</span>
+                      <span className="nr-card-date">{fmtDate(item.date)}</span>
+                    </div>
+                    <span className="nr-card-read">
+                      {isStory ? 'Read Full Story' : 'Read Article'}
+                      <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 10H16M12 6L16 10L12 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </span>
                   </div>
-                )}
-                <div className="nr-card-body">
-                  <span className="news-badge">{item.category}</span>
-                  <h3>{item.title}</h3>
-                  <p>{item.summary}</p>
-                  <div className="nr-card-footer">
-                    <span className="nr-card-author">{item.author}</span>
-                    <span className="nr-card-date">{fmtDate(item.date)}</span>
-                  </div>
-                  <span className="nr-card-read">
-                    Read Article
-                    <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 10H16M12 6L16 10L12 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </span>
-                </div>
-              </Link>
+                </Link>
               );
             })}
           </div>

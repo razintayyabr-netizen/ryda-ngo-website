@@ -169,7 +169,7 @@ export async function PUT(request) {
       author: author || posts[idx].author,
       summary: summary || posts[idx].summary,
       content: content || posts[idx].content,
-      featured_image: primaryImage,
+      featured_image: primaryUrl,
       images: imageList,
       tags: tags || posts[idx].tags,
       updatedAt: new Date().toISOString(),

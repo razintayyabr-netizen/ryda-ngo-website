@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
+import { saveInMemoryImage } from '@/lib/imageStore';
 
 let redis = null;
 let redisPromise = null;
@@ -24,8 +25,8 @@ async function getRedis() {
   return redisPromise;
 }
 
-// Max image size: 2MB (after base64 encoding, fits comfortably in Redis)
-const MAX_SIZE = 2 * 1024 * 1024;
+// Max image size: 6MB
+const MAX_SIZE = 6 * 1024 * 1024;
 
 export async function POST(request) {
   try {
@@ -43,33 +44,40 @@ export async function POST(request) {
     }
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No files provided for upload.' }, { status: 400 });
     }
 
-    const r = await getRedis();
-    if (!r) {
-      return NextResponse.json({ error: 'Storage unavailable' }, { status: 500 });
-    }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
     const urls = [];
+    const r = await getRedis();
 
     for (const file of files) {
       if (typeof file === 'string') continue;
       if (!allowedTypes.includes(file.type)) {
-        return NextResponse.json({ error: `File ${file.name} is invalid type. Only JPG, PNG, WebP, GIF allowed.` }, { status: 400 });
+        return NextResponse.json({ error: `File "${file.name}" has unsupported type. Only JPG, PNG, WebP, GIF allowed.` }, { status: 400 });
       }
       if (file.size > MAX_SIZE) {
-        return NextResponse.json({ error: `File ${file.name} exceeds 2MB limit.` }, { status: 400 });
+        return NextResponse.json({ error: `File "${file.name}" exceeds 6MB limit.` }, { status: 400 });
       }
 
       const bytes = await file.arrayBuffer();
       const base64 = Buffer.from(bytes).toString('base64');
       const dataUrl = `data:${file.type};base64,${base64}`;
 
-      const imgId = 'img-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-      await r.set(`ryda:image:${imgId}`, dataUrl);
-      await r.expire(`ryda:image:${imgId}`, 90 * 24 * 60 * 60);
+      const imgId = 'img-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+
+      // Save to Redis if available
+      if (r) {
+        try {
+          await r.set(`ryda:image:${imgId}`, dataUrl);
+          await r.expire(`ryda:image:${imgId}`, 180 * 24 * 60 * 60); // 180 days
+        } catch (redisErr) {
+          console.warn('Redis write failed, using in-memory store:', redisErr);
+          saveInMemoryImage(imgId, dataUrl);
+        }
+      } else {
+        saveInMemoryImage(imgId, dataUrl);
+      }
 
       urls.push(`/api/image/${imgId}.jpg`);
     }
@@ -78,10 +86,10 @@ export async function POST(request) {
       success: true,
       url: urls[0],
       urls,
+      count: urls.length,
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Upload failed: ' + (error.message || 'Unknown error') }, { status: 500 });
   }
 }
-

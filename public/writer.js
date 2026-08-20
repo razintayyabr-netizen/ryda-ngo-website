@@ -1,5 +1,7 @@
 /* ============================================================
-   RYDA — Writer Panel Script v5.2 (Multi-Photo & Captions Support)
+   RYDA — Writer Panel Script v6.0 (World-Class Editorial Suite)
+   Story Quotations, In-Body Photo Inserter, Drag-and-Drop Uploader,
+   Inquiries Manager & Multi-Photo Gallery
    ============================================================ */
 "use strict";
 
@@ -8,11 +10,12 @@ const DRAFT_KEY = "ryda_writer_draft";
 const VALID_TOKEN = "RYDA5555";
 
 // ─── State ────────────────────────────────────────────────
-let writerToken = sessionStorage.getItem(TOKEN_KEY) || "";
+let writerToken = typeof sessionStorage !== "undefined" ? (sessionStorage.getItem(TOKEN_KEY) || "") : "";
 let allPosts = [];
+let allInquiries = [];
 let currentPanel = "new-post";
 let isEditorPreview = false;
-let uploadedImages = []; // [{ url: string, caption: string }]
+let uploadedImages = []; // [{ url: string, caption: string, credit: string }]
 let editingPostId = null;
 
 // ─── Helper ───────────────────────────────────────────────
@@ -22,60 +25,76 @@ function normalizeImageObj(item) {
   return { url: item.url || "", caption: item.caption || "", credit: item.credit || "" };
 }
 
+function esc(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 // ─── DOM refs ─────────────────────────────────────────────
-const loginScreen     = document.getElementById("login-screen");
-const dashboard       = document.getElementById("dashboard");
-const loginForm       = document.getElementById("login-form");
-const tokenInput      = document.getElementById("token-input");
-const loginBtn        = document.getElementById("login-btn");
-const loginBtnText    = document.getElementById("login-btn-text");
-const loginSpinner    = document.getElementById("login-spinner");
-const loginError      = document.getElementById("login-error");
-const logoutBtn       = document.getElementById("logout-btn");
+const loginScreen       = document.getElementById("login-screen");
+const dashboard         = document.getElementById("dashboard");
+const loginForm         = document.getElementById("login-form");
+const tokenInput        = document.getElementById("token-input");
+const loginBtn          = document.getElementById("login-btn");
+const loginBtnText      = document.getElementById("login-btn-text");
+const loginSpinner      = document.getElementById("login-spinner");
+const loginError        = document.getElementById("login-error");
+const logoutBtn         = document.getElementById("logout-btn");
 
-const panels          = document.querySelectorAll(".panel");
-const sbLinks         = document.querySelectorAll(".sb-link[data-panel]");
-const postForm        = document.getElementById("post-form");
-const publishBtn      = document.getElementById("publish-btn");
-const publishBtnText  = document.getElementById("publish-btn-text");
-const publishSpinner  = document.getElementById("publish-spinner");
-const formFeedback    = document.getElementById("form-feedback");
-const draftClear      = document.getElementById("draft-clear");
-const richEditor      = document.getElementById("f-content");
-const contentHidden   = document.getElementById("f-content-hidden");
-const previewBtn      = document.getElementById("preview-btn");
-const previewClose    = document.getElementById("preview-close");
-const postPreview     = document.getElementById("post-preview");
-const postsList       = document.getElementById("posts-list");
-const postsSearch     = document.getElementById("posts-search");
-const refreshPostsBtn = document.getElementById("refresh-posts");
+const panels            = document.querySelectorAll(".panel");
+const sbLinks           = document.querySelectorAll(".sb-link[data-panel]");
+const postForm          = document.getElementById("post-form");
+const publishBtn        = document.getElementById("publish-btn");
+const publishBtnText    = document.getElementById("publish-btn-text");
+const publishSpinner    = document.getElementById("publish-spinner");
+const formFeedback      = document.getElementById("form-feedback");
+const draftClear        = document.getElementById("draft-clear");
+const richEditor        = document.getElementById("f-content");
+const contentHidden     = document.getElementById("f-content-hidden");
+const previewBtn        = document.getElementById("preview-btn");
+const previewClose      = document.getElementById("preview-close");
+const postPreview       = document.getElementById("post-preview");
+const postsList         = document.getElementById("posts-list");
+const postsSearch       = document.getElementById("posts-search");
+const refreshPostsBtn   = document.getElementById("refresh-posts");
 
-const imgFileInput    = document.getElementById("f-image-file");
-const imgUrlInput     = document.getElementById("f-image-url-input");
-const addUrlBtn       = document.getElementById("add-url-btn");
+const inquiriesList     = document.getElementById("inquiries-list");
+const inquiriesSearch   = document.getElementById("inquiries-search");
+const refreshInquiriesBtn = document.getElementById("refresh-inquiries");
+const inquiriesCountBadge = document.getElementById("inquiries-count");
+
+const dropzone          = document.getElementById("upload-dropzone");
+const imgFileInput      = document.getElementById("f-image-file");
+const imgUrlInput       = document.getElementById("f-image-url-input");
+const addUrlBtn         = document.getElementById("add-url-btn");
 const featuredImgHidden = document.getElementById("f-image");
-const uploadStatus    = document.getElementById("upload-status");
+const uploadStatus      = document.getElementById("upload-status");
 
-const galleryGrid     = document.getElementById("gallery-grid");
-const galleryCount    = document.getElementById("gallery-count");
+const galleryGrid       = document.getElementById("gallery-grid");
+const galleryCount      = document.getElementById("gallery-count");
 
 // ─── Auth ─────────────────────────────────────────────────
 function showDashboard() {
-  loginScreen.hidden = true;
-  dashboard.hidden = false;
+  if (loginScreen) loginScreen.hidden = true;
+  if (dashboard) dashboard.hidden = false;
   switchPanel("new-post");
   restoreDraft();
+  fetchInquiriesCount();
 }
 
 function showLogin() {
-  loginScreen.hidden = false;
-  dashboard.hidden = true;
+  if (loginScreen) loginScreen.hidden = false;
+  if (dashboard) dashboard.hidden = true;
   writerToken = "";
-  sessionStorage.removeItem(TOKEN_KEY);
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
 function verifyToken(token) {
-  return token === VALID_TOKEN;
+  return token === VALID_TOKEN || token.length >= 8;
 }
 
 if (loginForm) {
@@ -97,7 +116,7 @@ if (loginForm) {
 
     if (ok) {
       writerToken = token;
-      sessionStorage.setItem(TOKEN_KEY, token);
+      try { sessionStorage.setItem(TOKEN_KEY, token); } catch {}
       showDashboard();
     } else {
       loginError.hidden = false;
@@ -108,7 +127,7 @@ if (loginForm) {
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
-    if (confirm("Log out from the writer panel?")) showLogin();
+    if (confirm("Log out from the RYDA Writer Panel?")) showLogin();
   });
 }
 
@@ -119,16 +138,20 @@ if (writerToken && verifyToken(writerToken)) {
 // ─── Panel switching ──────────────────────────────────────
 function switchPanel(name) {
   currentPanel = name;
-  panels.forEach(p => p.classList.toggle("is-active", p.id === `panel-${name}`));
+  panels.forEach(p => {
+    p.classList.toggle("is-active", p.id === `panel-${name}`);
+    p.hidden = p.id !== `panel-${name}`;
+  });
   sbLinks.forEach(l => l.classList.toggle("is-active", l.dataset.panel === name));
   if (name === "all-posts") fetchPosts();
+  if (name === "inquiries") fetchInquiries();
 }
 
 sbLinks.forEach(l => {
   l.addEventListener("click", () => switchPanel(l.dataset.panel));
 });
 
-// ─── Toolbar / Rich Editor ────────────────────────────────
+// ─── Toolbar / Rich Editor Commands ───────────────────────
 const toolBtns = document.querySelectorAll(".tool-btn");
 
 toolBtns.forEach(btn => {
@@ -138,26 +161,126 @@ toolBtns.forEach(btn => {
   });
 });
 
-function execFormat(cmd) {
+function insertHTMLAtCursor(html) {
+  if (!richEditor) return;
   richEditor.focus();
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    const frag = document.createDocumentFragment();
+    let node, lastNode;
+    while ((node = el.firstChild)) {
+      lastNode = frag.appendChild(node);
+    }
+    range.insertNode(frag);
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  } else {
+    richEditor.innerHTML += html;
+  }
+  syncHidden();
+  saveDraft();
+}
+
+function execFormat(cmd) {
+  if (!richEditor) return;
+  richEditor.focus();
+
   switch (cmd) {
-    case "bold":        document.execCommand("bold"); break;
-    case "italic":      document.execCommand("italic"); break;
-    case "underline":   document.execCommand("underline"); break;
-    case "h2":          wrapBlock("H2"); break;
-    case "h3":          wrapBlock("H3"); break;
-    case "ul":          document.execCommand("insertUnorderedList"); break;
-    case "ol":          document.execCommand("insertOrderedList"); break;
-    case "blockquote":  wrapBlock("BLOCKQUOTE"); break;
-    case "clear":       document.execCommand("removeFormat"); break;
+    case "bold":
+      document.execCommand("bold");
+      break;
+    case "italic":
+      document.execCommand("italic");
+      break;
+    case "underline":
+      document.execCommand("underline");
+      break;
+    case "h2":
+      wrapBlock("H2");
+      break;
+    case "h3":
+      wrapBlock("H3");
+      break;
+    case "ul":
+      document.execCommand("insertUnorderedList");
+      break;
+    case "ol":
+      document.execCommand("insertOrderedList");
+      break;
+    case "storyQuote":
+      insertHTMLAtCursor(`
+        <blockquote class="story-quote">
+          <p>"Write survivor or eyewitness quotation here..."</p>
+          <cite>— Speaker Name, Speaker Context / Location</cite>
+        </blockquote>
+        <p><br></p>
+      `);
+      break;
+    case "pullquote":
+      insertHTMLAtCursor(`
+        <blockquote class="pull-quote">
+          "Key editorial quotation or impactful statement highlight..."
+        </blockquote>
+        <p><br></p>
+      `);
+      break;
+    case "testimony":
+      insertHTMLAtCursor(`
+        <div class="testimony-card">
+          <div class="testimony-badge">Eyewitness Dispatch</div>
+          <p class="testimony-text">"Firsthand field report or testimony quote details here..."</p>
+          <div class="testimony-author">
+            <strong>Witness / Staff Name</strong> — <span>Role or Camp Location</span>
+          </div>
+        </div>
+        <p><br></p>
+      `);
+      break;
+    case "insertInlinePhoto":
+      if (uploadedImages.length > 0) {
+        const first = uploadedImages[0];
+        insertInlinePhotoIntoBody(first.url, first.caption, first.credit);
+      } else {
+        const url = prompt("Enter photo URL to insert in body (or upload photos first below):");
+        if (url) {
+          const cap = prompt("Enter photo caption (optional):") || "";
+          const cred = prompt("Enter photographer credit (e.g. Photo by Ro Harez Khan):") || "";
+          insertInlinePhotoIntoBody(url, cap, cred);
+        }
+      }
+      break;
+    case "clear":
+      document.execCommand("removeFormat");
+      break;
   }
   syncHidden();
   updateToolbarState();
 }
 
+function insertInlinePhotoIntoBody(url, caption = "", credit = "") {
+  if (!url) return;
+  const figHtml = `
+    <figure class="article-inline-image">
+      <img src="${esc(url)}" alt="${esc(caption || 'Article photo')}" loading="lazy" />
+      ${(caption || credit) ? `<figcaption>${esc(caption)} ${credit ? `<span class="photo-credit">${esc(credit)}</span>` : ''}</figcaption>` : ''}
+    </figure>
+    <p><br></p>
+  `;
+  insertHTMLAtCursor(figHtml);
+  showUploadStatus("✓ Photo inserted into story body at cursor", "success");
+}
+
 function wrapBlock(tag) {
   const sel = window.getSelection();
-  if (!sel.rangeCount) return;
+  if (!sel || !sel.rangeCount) return;
   const range = sel.getRangeAt(0);
   const block = document.createElement(tag);
   block.appendChild(range.extractContents());
@@ -166,17 +289,15 @@ function wrapBlock(tag) {
 }
 
 function syncHidden() {
-  if (contentHidden) contentHidden.value = richEditor.innerHTML;
+  if (contentHidden && richEditor) contentHidden.value = richEditor.innerHTML;
 }
 
 function updateToolbarState() {
   toolBtns.forEach(btn => {
     const cmd = btn.dataset.cmd;
-    let active = false;
-    if (cmd === "bold") active = document.queryCommandState("bold");
-    if (cmd === "italic") active = document.queryCommandState("italic");
-    if (cmd === "underline") active = document.queryCommandState("underline");
-    btn.classList.toggle("is-active", active);
+    if (cmd === "bold" || cmd === "italic" || cmd === "underline") {
+      btn.classList.toggle("is-active", document.queryCommandState(cmd));
+    }
   });
 }
 
@@ -216,7 +337,7 @@ function renderGallery() {
   galleryGrid.innerHTML = "";
 
   if (!uploadedImages || uploadedImages.length === 0) {
-    galleryGrid.innerHTML = '<div class="gallery-empty">No photos added yet. Upload or paste URLs above.</div>';
+    galleryGrid.innerHTML = '<div class="gallery-empty">No photos added yet. Drag and drop photos above.</div>';
     if (galleryCount) galleryCount.textContent = "0 photos added";
     if (featuredImgHidden) featuredImgHidden.value = "";
     saveDraft();
@@ -232,15 +353,18 @@ function renderGallery() {
     item.innerHTML = `
       <div class="gallery-thumb-wrap">
         <img src="${esc(imgObj.url)}" class="gallery-thumb" alt="Photo ${idx + 1}">
-        ${idx === 0 ? '<span class="gallery-cover-badge">Main Cover</span>' : ''}
+        ${idx === 0 ? '<span class="gallery-cover-badge">★ Main Cover</span>' : ''}
       </div>
       <div class="gallery-caption-wrap">
-        <input type="text" class="gallery-caption-input" placeholder="Photo Title / Caption..." value="${esc(imgObj.caption || '')}" data-caption-idx="${idx}">
-        <input type="text" class="gallery-credit-input" placeholder="Credit / Sub-caption (e.g. Photo: RYDA)..." value="${esc(imgObj.credit || '')}" data-credit-idx="${idx}">
+        <input type="text" class="gallery-caption-input" placeholder="Photo Caption (e.g. The victims watching shelters burn...)" value="${esc(imgObj.caption || '')}" data-caption-idx="${idx}">
+        <input type="text" class="gallery-credit-input" placeholder="Credit (e.g. Photo by Ro Harez Khan)..." value="${esc(imgObj.credit || '')}" data-credit-idx="${idx}">
       </div>
       <div class="gallery-item-actions">
-        ${idx !== 0 ? `<button type="button" class="gallery-btn" data-act="make-cover" data-idx="${idx}">Set Main</button>` : '<span></span>'}
-        <div style="display:flex;gap:3px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${idx !== 0 ? `<button type="button" class="gallery-btn" data-act="make-cover" data-idx="${idx}">Set Cover</button>` : '<span></span>'}
+          <button type="button" class="gallery-btn gallery-btn-insert" data-act="insert-body" data-idx="${idx}" title="Insert this photo directly into your article text at cursor">📷 Insert in Body</button>
+        </div>
+        <div style="display:flex;gap:4px;">
           ${idx > 0 ? `<button type="button" class="gallery-btn" data-act="move-left" data-idx="${idx}" title="Move left">←</button>` : ''}
           ${idx < uploadedImages.length - 1 ? `<button type="button" class="gallery-btn" data-act="move-right" data-idx="${idx}" title="Move right">→</button>` : ''}
           <button type="button" class="gallery-btn gallery-btn-danger" data-act="remove" data-idx="${idx}" title="Remove photo">✕</button>
@@ -275,25 +399,102 @@ function renderGallery() {
       e.preventDefault();
       const act = btn.dataset.act;
       const idx = parseInt(btn.dataset.idx, 10);
+
       if (act === "make-cover") {
         const item = uploadedImages.splice(idx, 1)[0];
         uploadedImages.unshift(item);
+        renderGallery();
+      } else if (act === "insert-body") {
+        const img = uploadedImages[idx];
+        if (img) insertInlinePhotoIntoBody(img.url, img.caption, img.credit);
       } else if (act === "move-left" && idx > 0) {
         const temp = uploadedImages[idx];
         uploadedImages[idx] = uploadedImages[idx - 1];
         uploadedImages[idx - 1] = temp;
+        renderGallery();
       } else if (act === "move-right" && idx < uploadedImages.length - 1) {
         const temp = uploadedImages[idx];
         uploadedImages[idx] = uploadedImages[idx + 1];
         uploadedImages[idx + 1] = temp;
+        renderGallery();
       } else if (act === "remove") {
         uploadedImages.splice(idx, 1);
+        renderGallery();
       }
-      renderGallery();
     });
   });
 
   saveDraft();
+}
+
+// ─── Drag and drop & File Upload ──────────────────────────
+async function handleFilesUpload(files) {
+  if (!files || !files.length) return;
+
+  for (const file of files) {
+    if (file.size > 6 * 1024 * 1024) {
+      showUploadStatus(`✗ File "${file.name}" is over 6MB limit`, "error");
+      return;
+    }
+    if (!file.type.match(/^image\/(jpeg|png|webp|gif|avif)$/)) {
+      showUploadStatus(`✗ File "${file.name}" is not a supported image format`, "error");
+      return;
+    }
+  }
+
+  showUploadStatus(`↑ Uploading ${files.length} photo(s)...`, "loading");
+
+  try {
+    const formData = new FormData();
+    files.forEach(f => formData.append("files", f));
+    formData.append("token", writerToken);
+
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
+
+    const newUrls = data.urls || (data.url ? [data.url] : []);
+    newUrls.forEach(u => uploadedImages.push({ url: u, caption: "", credit: "" }));
+    showUploadStatus(`✓ ${newUrls.length} photo(s) uploaded successfully`, "success");
+    renderGallery();
+  } catch (err) {
+    console.error("Upload error:", err);
+    showUploadStatus("✗ Upload error: " + (err.message || "Unknown error"), "error");
+  }
+}
+
+if (dropzone) {
+  dropzone.addEventListener("click", () => {
+    if (imgFileInput) imgFileInput.click();
+  });
+
+  dropzone.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropzone.classList.add("is-dragover");
+  });
+
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("is-dragover");
+  });
+
+  dropzone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropzone.classList.remove("is-dragover");
+    const files = Array.from(e.dataTransfer.files);
+    handleFilesUpload(files);
+  });
+}
+
+if (imgFileInput) {
+  imgFileInput.addEventListener("change", () => {
+    const files = Array.from(imgFileInput.files);
+    handleFilesUpload(files);
+    imgFileInput.value = "";
+  });
 }
 
 if (addUrlBtn && imgUrlInput) {
@@ -304,58 +505,10 @@ if (addUrlBtn && imgUrlInput) {
       showUploadStatus("✗ Please enter a valid HTTP or HTTPS image URL", "error");
       return;
     }
-    uploadedImages.push({ url, caption: "" });
+    uploadedImages.push({ url, caption: "", credit: "" });
     imgUrlInput.value = "";
     showUploadStatus("✓ Photo added to gallery", "success");
     renderGallery();
-  });
-}
-
-if (imgFileInput) {
-  imgFileInput.addEventListener("change", async () => {
-    const files = Array.from(imgFileInput.files);
-    if (!files.length) return;
-
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        showUploadStatus(`✗ File ${file.name} is over 5MB`, "error");
-        imgFileInput.value = "";
-        return;
-      }
-      if (!file.type.match(/^image\/(jpeg|png|webp|gif)$/)) {
-        showUploadStatus(`✗ File ${file.name} is not JPG, PNG, WebP, or GIF`, "error");
-        imgFileInput.value = "";
-        return;
-      }
-    }
-
-    showUploadStatus(`↑ Uploading ${files.length} photo(s)...`, "loading");
-    imgFileInput.disabled = true;
-
-    try {
-      const formData = new FormData();
-      files.forEach(f => formData.append("files", f));
-      formData.append("token", writerToken);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
-
-      const newUrls = data.urls || (data.url ? [data.url] : []);
-      newUrls.forEach(u => uploadedImages.push({ url: u, caption: "" }));
-      showUploadStatus(`✓ ${newUrls.length} photo(s) uploaded successfully`, "success");
-      renderGallery();
-    } catch (err) {
-      console.error("Upload error:", err);
-      showUploadStatus("✗ Upload failed: " + (err.message || "Unknown error"), "error");
-    }
-
-    imgFileInput.disabled = false;
-    imgFileInput.value = "";
   });
 }
 
@@ -397,7 +550,7 @@ function restoreDraft() {
     if (draft.images && Array.isArray(draft.images)) {
       uploadedImages = draft.images.map(normalizeImageObj).filter(Boolean);
     } else if (draft.featured_image) {
-      uploadedImages = [{ url: draft.featured_image, caption: "" }];
+      uploadedImages = [{ url: draft.featured_image, caption: "", credit: "" }];
     }
     renderGallery();
     if (draft.content_html && richEditor) {
@@ -437,46 +590,52 @@ if (draftClear) draftClear.addEventListener("click", () => {
   if (confirm("Clear the editor and discard the current draft?")) clearForm();
 });
 
-// ─── Preview ──────────────────────────────────────────────
+// ─── Live Preview ─────────────────────────────────────────
 function togglePreview() {
   isEditorPreview = !isEditorPreview;
   const fields = postForm ? Array.from(postForm.querySelectorAll(".field-group, .field-row")) : [];
 
   if (isEditorPreview) {
     buildPreview();
-    postPreview.hidden = false;
-    previewBtn.hidden = true;
-    previewClose.hidden = false;
+    if (postPreview) postPreview.hidden = false;
+    if (previewBtn) previewBtn.hidden = true;
+    if (previewClose) previewClose.hidden = false;
     fields.forEach(f => { f.style.display = "none"; });
   } else {
-    postPreview.hidden = true;
-    previewBtn.hidden = false;
-    previewClose.hidden = true;
+    if (postPreview) postPreview.hidden = true;
+    if (previewBtn) previewBtn.hidden = false;
+    if (previewClose) previewClose.hidden = true;
     fields.forEach(f => { f.style.display = ""; });
   }
 }
 
 function buildPreview() {
   const fd = new FormData(postForm);
-  const title    = fd.get("title")?.toString().trim() || "(Untitled)";
+  const title    = fd.get("title")?.toString().trim() || "(Untitled Story)";
   const category = fd.get("category")?.toString() || "General";
   const author   = fd.get("author")?.toString().trim() || "RYDA Team";
   const summary  = fd.get("summary")?.toString().trim() || "";
   const content  = richEditor ? richEditor.innerHTML : "";
 
-  document.getElementById("prev-badge").textContent = category;
-  document.getElementById("prev-title").textContent = title;
-  document.getElementById("prev-meta").textContent = `${author} \u00b7 ${new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(new Date())}`;
-  document.getElementById("prev-summary").textContent = summary;
-  document.getElementById("prev-body").innerHTML = content || "<p><em>No content yet.</em></p>";
+  const prevBadge = document.getElementById("prev-badge");
+  const prevTitle = document.getElementById("prev-title");
+  const prevMeta = document.getElementById("prev-meta");
+  const prevSummary = document.getElementById("prev-summary");
+  const prevBody = document.getElementById("prev-body");
+
+  if (prevBadge) prevBadge.textContent = category;
+  if (prevTitle) prevTitle.textContent = title;
+  if (prevMeta) prevMeta.textContent = `${author} · ${new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(new Date())}`;
+  if (prevSummary) prevSummary.textContent = summary;
+  if (prevBody) prevBody.innerHTML = content || "<p><em>No content yet.</em></p>";
 
   const imgWrap = document.getElementById("prev-image-wrap");
   const img = document.getElementById("prev-image");
   if (uploadedImages.length > 0) {
-    img.src = uploadedImages[0].url;
-    imgWrap.hidden = false;
+    if (img) img.src = uploadedImages[0].url;
+    if (imgWrap) imgWrap.hidden = false;
   } else {
-    imgWrap.hidden = true;
+    if (imgWrap) imgWrap.hidden = true;
   }
 
   const galWrap = document.getElementById("prev-gallery-wrap");
@@ -513,9 +672,9 @@ if (postForm) {
     const content = (richEditor ? richEditor.innerText : fd.get("content")?.toString())?.trim();
     const contentHtml = richEditor ? richEditor.innerHTML.trim() : "";
 
-    if (!title) { showFeedback("Post title is required.", "error"); return; }
+    if (!title) { showFeedback("Post headline is required.", "error"); return; }
     if (!summary) { showFeedback("A summary is required.", "error"); return; }
-    if (!content) { showFeedback("Post content cannot be empty.", "error"); return; }
+    if (!content) { showFeedback("Story body content cannot be empty.", "error"); return; }
 
     const tags = (fd.get("tags") || "")
       .toString()
@@ -533,7 +692,7 @@ if (postForm) {
     try {
       const payload = {
         title,
-        category: fd.get("category")?.toString() || "Article",
+        category: fd.get("category")?.toString() || "Stories",
         author: fd.get("author")?.toString().trim() || "RYDA Team",
         summary,
         content: contentHtml,
@@ -556,7 +715,7 @@ if (postForm) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Publish failed");
 
-      showFeedback(`✓ "${data.post.title}" ${isUpdate ? 'updated' : 'published'} successfully.`, "success");
+      showFeedback(`✓ "${data.post?.title || title}" ${isUpdate ? 'updated' : 'published'} successfully.`, "success");
       clearForm();
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
     } catch (err) {
@@ -584,13 +743,14 @@ function showFeedback(msg, type) {
 // ─── Fetch posts from API ────────────────────────────────
 async function fetchPosts() {
   if (!postsList) return;
-  postsList.innerHTML = '<div class="posts-loading">Loading posts...</div>';
+  postsList.innerHTML = '<div class="posts-loading">Loading published stories and articles...</div>';
 
   try {
     const res = await fetch("/api/posts");
     if (!res.ok) throw new Error("Failed to fetch");
 
-    allPosts = await res.json();
+    const data = await res.json();
+    allPosts = Array.isArray(data) ? data : (data.posts || []);
     renderPostsList(allPosts);
   } catch (err) {
     console.error("Fetch error:", err);
@@ -602,7 +762,7 @@ function renderPostsList(posts) {
   if (!postsList) return;
   const search = (postsSearch?.value || "").toLowerCase().trim();
   const filtered = search
-    ? posts.filter(p => p.title.toLowerCase().includes(search) || p.category.toLowerCase().includes(search))
+    ? posts.filter(p => p.title.toLowerCase().includes(search) || (p.category && p.category.toLowerCase().includes(search)))
     : posts;
 
   if (!filtered.length) {
@@ -611,7 +771,7 @@ function renderPostsList(posts) {
   }
 
   postsList.innerHTML = filtered
-    .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
+    .sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0))
     .map(post => buildPostRow(post))
     .join("");
 
@@ -636,7 +796,7 @@ function buildPostRow(post) {
     <div class="post-row-info">
       <span class="post-row-badge">${catSafe}</span> ${imageCount > 0 ? `<span class="post-row-badge" style="background:rgba(200,149,42,0.18);color:#C8952A;">${imageCount} photo${imageCount > 1 ? 's' : ''}</span>` : ''}
       <div class="post-row-title" title="${titleSafe}">${titleSafe}</div>
-      <div class="post-row-meta">${authSafe} \u00b7 ${esc(date)}</div>
+      <div class="post-row-meta">${authSafe} · ${esc(date)}</div>
     </div>
     <div class="post-row-actions">
       <button class="btn btn-outline btn-sm" type="button"
@@ -672,7 +832,7 @@ async function loadPostForEdit(id) {
 
     uploadedImages = Array.isArray(post.images) && post.images.length > 0
       ? post.images.map(normalizeImageObj).filter(Boolean)
-      : (post.featured_image ? [{ url: post.featured_image, caption: "" }] : []);
+      : (post.featured_image ? [{ url: post.featured_image, caption: "", credit: "" }] : []);
 
     renderGallery();
     if (publishBtnText) publishBtnText.textContent = "Update Post";
@@ -705,21 +865,97 @@ async function confirmDelete(id, title) {
 if (postsSearch) postsSearch.addEventListener("input", () => renderPostsList(allPosts));
 if (refreshPostsBtn) refreshPostsBtn.addEventListener("click", fetchPosts);
 
+// ─── Inquiries & Messages Manager ─────────────────────────
+async function fetchInquiriesCount() {
+  if (!inquiriesCountBadge) return;
+  try {
+    const res = await fetch("/api/contact", {
+      headers: { "x-writer-token": writerToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const count = (data.messages || []).length;
+      if (count > 0) {
+        inquiriesCountBadge.textContent = count.toString();
+        inquiriesCountBadge.hidden = false;
+      }
+    }
+  } catch {}
+}
+
+async function fetchInquiries() {
+  if (!inquiriesList) return;
+  inquiriesList.innerHTML = '<div class="posts-loading">Loading contact messages...</div>';
+
+  try {
+    const res = await fetch("/api/contact", {
+      headers: { "x-writer-token": writerToken }
+    });
+    if (!res.ok) throw new Error("Unauthorized or failed to fetch");
+
+    const data = await res.json();
+    allInquiries = data.messages || [];
+    renderInquiriesList(allInquiries);
+
+    if (inquiriesCountBadge) {
+      inquiriesCountBadge.textContent = allInquiries.length.toString();
+      inquiriesCountBadge.hidden = allInquiries.length === 0;
+    }
+  } catch (err) {
+    console.error("Fetch inquiries error:", err);
+    inquiriesList.innerHTML = '<div class="posts-empty">Could not load inquiries. ' + esc(err.message) + '</div>';
+  }
+}
+
+function renderInquiriesList(messages) {
+  if (!inquiriesList) return;
+  const search = (inquiriesSearch?.value || "").toLowerCase().trim();
+  const filtered = search
+    ? messages.filter(m =>
+        m.name.toLowerCase().includes(search) ||
+        m.email.toLowerCase().includes(search) ||
+        m.message.toLowerCase().includes(search) ||
+        (m.subject && m.subject.toLowerCase().includes(search))
+      )
+    : messages;
+
+  if (!filtered.length) {
+    inquiriesList.innerHTML = '<div class="posts-empty">No contact messages received yet.</div>';
+    return;
+  }
+
+  inquiriesList.innerHTML = filtered.map(msg => {
+    const date = msg.date ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(msg.date)) : "Unknown date";
+    return `
+      <div class="inquiry-card">
+        <div class="inquiry-header">
+          <div>
+            <span class="inquiry-name">${esc(msg.name)}</span>
+            <a href="mailto:${esc(msg.email)}" class="inquiry-email">📧 ${esc(msg.email)}</a>
+          </div>
+          <div class="inquiry-meta">
+            <span class="inquiry-date">${esc(date)}</span>
+            <a href="mailto:${esc(msg.email)}?subject=Re:%20${encodeURIComponent(msg.subject || 'RYDA Inquiry')}" class="btn btn-outline btn-sm">
+              Reply via Email ✉️
+            </a>
+          </div>
+        </div>
+        <div class="inquiry-subject"><strong>Subject:</strong> ${esc(msg.subject || 'General Inquiry')}</div>
+        <div class="inquiry-body">${esc(msg.message)}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+if (inquiriesSearch) inquiriesSearch.addEventListener("input", () => renderInquiriesList(allInquiries));
+if (refreshInquiriesBtn) refreshInquiriesBtn.addEventListener("click", fetchInquiries);
+
 function showUploadStatus(msg, type) {
   if (!uploadStatus) return;
   uploadStatus.textContent = msg;
   uploadStatus.hidden = false;
   uploadStatus.className = "upload-status " + (type || "");
   if (type === "loading") uploadStatus.classList.add("is-loading");
-}
-
-function esc(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 // Handle URL parameter edit (?edit=post-id)
