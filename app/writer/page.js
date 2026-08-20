@@ -15,12 +15,12 @@ const rawHTML = `
           <div class="login-sub">Writer &amp; Publishing Portal</div>
         </div>
       </div>
-      <p class="login-desc">Enter your writer token to access the publishing dashboard and story management.</p>
+      <p class="login-desc">Enter your authorized writer token to access the publishing dashboard.</p>
       <form id="login-form" novalidate>
         <div class="login-field">
-          <label for="token-input">Writer Token / Password</label>
+          <label for="token-input">Access Token</label>
           <div style="position:relative;display:flex;align-items:center;">
-            <input id="token-input" type="password" placeholder="Enter writer token (e.g. RYDA5555)" autocomplete="current-password" required style="padding-right:42px;width:100%;">
+            <input id="token-input" type="password" placeholder="••••••••••••" autocomplete="current-password" required style="padding-right:42px;width:100%;">
             <button type="button" id="toggle-pw-btn" style="position:absolute;right:10px;background:none;border:none;color:var(--on-bg-dim);cursor:pointer;font-size:1.1rem;padding:4px;" title="Show/Hide Password">👁️</button>
           </div>
         </div>
@@ -30,7 +30,6 @@ const rawHTML = `
         </button>
         <p class="login-error" id="login-error" hidden>Incorrect token. Please enter the valid RYDA writer token.</p>
       </form>
-      <p class="login-hint">Default Token: <code>RYDA5555</code> (or <code>12345678</code> or <code>WRITER_TOKEN</code> in env).</p>
     </div>
   </div>
 
