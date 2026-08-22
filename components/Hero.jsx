@@ -74,7 +74,7 @@ export default function Hero() {
         <div className="container is-stats-grid">
           <StatItem value={50} suffix="+" label="Partner Organizations" active={countersActive} />
           <StatItem value={1200} suffix="+" label="People Directly Reached" active={countersActive} />
-          <StatItem value={8} suffix="" label="Active Programs" active={countersActive} />
+          <StatItem value={10} suffix="" label="Active Programs" active={countersActive} />
           <StatItem value={100} suffix="%" label="Rohingya-Led Team" active={countersActive} />
         </div>
       </section>

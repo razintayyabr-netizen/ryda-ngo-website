@@ -57,7 +57,7 @@ export default function StatsBand() {
     <div className="stats-band" aria-label="Impact at a glance" ref={statsRef}>
       <div className="stats-inner">
         <div className="stat-item">
-          <span className="stat-n"><span className="js-count" data-target="8">0</span>+</span>
+          <span className="stat-n"><span className="js-count" data-target="10">0</span>+</span>
           <span className="stat-lbl">Active Programs</span>
         </div>
         <div className="stat-sep" aria-hidden="true"></div>

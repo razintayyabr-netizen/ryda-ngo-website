@@ -108,12 +108,36 @@ const programs = [
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M12 14l9-5-9-5-9 5 9 5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M21 10v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: 'Education & Youth Development',
+    desc: 'RYDA promotes access to education and learning opportunities for Rohingya youth, including girls and boys living in Bangladesh’s refugee camps. Our education work includes community-based learning, youth development, leadership and skills-building, human rights and statelessness education, and awareness-raising on the importance of education. RYDA also advocates for improved access to secondary and higher education and supports young Rohingya to develop the knowledge, skills, confidence, and leadership capacities needed to participate meaningfully in their communities and pursue their future aspirations.',
+    tag: 'Education',
+  },
+  {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M11 8v6M8 11h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
     title: 'Research & Analysis',
     desc: 'Carry out in-depth research on human rights conditions affecting Rohingya communities. Generate evidence-based analysis to support advocacy, policy recommendations, and informed decision-making.',
     tag: 'Research',
+  },
+  {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
+        <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m4 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 8h6m-6 4h6m-6 4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: 'Journalism, Storytelling & Media',
+    desc: 'RYDA supports community-based journalism and storytelling that documents and reports on issues affecting Rohingya communities. Through field reporting, interviews, human-interest stories, and issue-based coverage, RYDA produces and shares stories on the experiences, challenges, rights, and aspirations of Rohingya people. The program seeks to strengthen community journalism, support accurate and responsible reporting, and bring Rohingya perspectives and underreported issues to wider national and international audiences.',
+    tag: 'Media & Stories',
   },
   {
     icon: (
@@ -149,8 +173,7 @@ const programs = [
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M12 2v4M12 8v4M12 16v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M12 4.5L18.5 7.5V12C18.5 15.88 15.95 19.28 12 20.5C8.05 19.28 5.5 15.88 5.5 12V7.5L12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M8.8 13.2H15.2M12 10V16.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
     title: 'Humanitarian Assistance in Emergencies',

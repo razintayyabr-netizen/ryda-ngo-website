@@ -1,69 +1,37 @@
 import { NextResponse } from 'next/server';
-import { createClient } from 'redis';
 import { isValidWriterToken } from '@/lib/auth';
-
-let redis = null;
-let redisPromise = null;
-
-async function getRedis() {
-  if (redis && redis.isOpen) return redis;
-  if (!process.env.REDIS_URL) return null;
-  if (!redisPromise) {
-    redisPromise = (async () => {
-      try {
-        redis = createClient({ url: process.env.REDIS_URL });
-        redis.on('error', (err) => console.error('Redis client error:', err));
-        await redis.connect();
-        return redis;
-      } catch (e) {
-        console.error('Redis connect error:', e);
-        redisPromise = null;
-        return null;
-      }
-    })();
-  }
-  return redisPromise;
-}
-
-const POSTS_KEY = 'ryda:posts';
-
-async function getDynamicPosts() {
-  try {
-    const r = await getRedis();
-    if (!r) return [];
-    const raw = await r.get(POSTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    console.error('Redis read error:', e);
-    return [];
-  }
-}
-
-async function saveDynamicPosts(posts) {
-  try {
-    const r = await getRedis();
-    if (!r) return;
-    await r.set(POSTS_KEY, JSON.stringify(posts));
-  } catch (e) {
-    console.error('Redis write error:', e);
-  }
-}
+import {
+  getDynamicPosts,
+  saveDynamicPosts,
+  markAsDeleted
+} from '@/lib/postsStore';
 
 // DELETE /api/posts/[id]
 export async function DELETE(request, { params }) {
-  const { id } = params;
-  const token = request.headers.get('x-writer-token');
-  if (!isValidWriterToken(token)) {
-    return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
+  try {
+    const { id } = params;
+    const token = request.headers.get('x-writer-token');
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
+    }
+
+    // Always mark ID in deleted list so built-in and dynamic posts are removed
+    await markAsDeleted(id);
+
+    // Also remove from dynamic posts if present
+    const posts = await getDynamicPosts();
+    const filtered = posts.filter(p => p.id !== id && p.slug !== id);
+    if (filtered.length !== posts.length) {
+      await saveDynamicPosts(filtered);
+    }
+
+    return NextResponse.json({ success: true, message: `Post ${id} deleted successfully` });
+  } catch (err) {
+    console.error('Delete route error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to delete post' }, { status: 500 });
   }
-  if (id.startsWith('nr-')) {
-    return NextResponse.json({ error: 'Cannot delete built-in posts' }, { status: 400 });
-  }
-  const posts = await getDynamicPosts();
-  const filtered = posts.filter(p => p.id !== id);
-  if (filtered.length === posts.length) {
-    return NextResponse.json({ error: 'Post not found' }, { status: 404 });
-  }
-  await saveDynamicPosts(filtered);
-  return NextResponse.json({ success: true });
 }

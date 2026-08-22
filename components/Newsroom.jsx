@@ -30,7 +30,7 @@ export default function Newsroom() {
         if (res.ok) {
           const data = await res.json();
           const list = Array.isArray(data) ? data : (data.posts || []);
-          if (list.length > 0) {
+          if (Array.isArray(list)) {
             setAllNews(list);
           }
         }

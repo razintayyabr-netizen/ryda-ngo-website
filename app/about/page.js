@@ -96,7 +96,7 @@ export default function AboutPage() {
                   <span className="about-stat-label">Founded</span>
                 </div>
                 <div className="about-stat-card">
-                  <span className="about-stat-num">8</span>
+                  <span className="about-stat-num">10</span>
                   <span className="about-stat-label">Program Areas</span>
                 </div>
                 <div className="about-stat-card">

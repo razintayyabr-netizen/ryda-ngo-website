@@ -1,47 +1,18 @@
 import STATIC_NEWS from '@/lib/staticNews';
 import ArticleClient from './ArticleClient';
-import { createClient } from 'redis';
 import { headers } from 'next/headers';
+import { getPostByIdOrSlug } from '@/lib/postsStore';
 
 export const revalidate = 60; // Revalidate every minute
 
-let redis = null;
-let redisPromise = null;
-
-async function getRedis() {
-  if (redis && redis.isOpen) return redis;
-  if (!process.env.REDIS_URL) return null;
-  if (!redisPromise) {
-    redisPromise = (async () => {
-      try {
-        redis = createClient({ url: process.env.REDIS_URL });
-        redis.on('error', () => {});
-        await redis.connect();
-        return redis;
-      } catch (e) {
-        redisPromise = null;
-        return null;
-      }
-    })();
-  }
-  return redisPromise;
-}
-
 async function getPost(slugOrId, reqBaseUrl = 'https://rydarohingya.org') {
-  // 1. Try Redis
+  // 1. Try postsStore directly (Redis + shared memory fallback)
   try {
-    const r = await getRedis();
-    if (r) {
-      const raw = await r.get('ryda:posts');
-      if (raw) {
-        const posts = JSON.parse(raw);
-        const found = posts.find(p => p.id === slugOrId || p.slug === slugOrId);
-        if (found) return found;
-      }
-    }
+    const post = await getPostByIdOrSlug(slugOrId);
+    if (post) return post;
   } catch (e) {}
 
-  // 2. Try internal /api/posts fetch for dynamic posts
+  // 2. Try internal /api/posts fetch
   try {
     const fetchUrl = `${reqBaseUrl}/api/posts?id=${encodeURIComponent(slugOrId)}`;
     const res = await fetch(fetchUrl, { next: { revalidate: 10 } });
@@ -51,8 +22,7 @@ async function getPost(slugOrId, reqBaseUrl = 'https://rydarohingya.org') {
     }
   } catch (e) {}
 
-  // 3. Fallback to STATIC_NEWS
-  return STATIC_NEWS.find(p => p.id === slugOrId || p.slug === slugOrId) || null;
+  return null;
 }
 
 export async function generateMetadata({ params }) {

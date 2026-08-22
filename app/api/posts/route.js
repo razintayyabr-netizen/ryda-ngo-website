@@ -1,73 +1,33 @@
 import { NextResponse } from 'next/server';
-import { createClient } from 'redis';
 import STATIC_NEWS from '@/lib/staticNews';
 import { isValidWriterToken } from '@/lib/auth';
-
-let redis = null;
-let redisPromise = null;
-
-async function getRedis() {
-  if (redis && redis.isOpen) return redis;
-  if (!process.env.REDIS_URL) return null;
-
-  if (!redisPromise) {
-    redisPromise = (async () => {
-      try {
-        redis = createClient({ url: process.env.REDIS_URL });
-        redis.on('error', (err) => console.error('Redis client error:', err));
-        await redis.connect();
-        return redis;
-      } catch (e) {
-        console.error('Redis connect error:', e);
-        redisPromise = null;
-        return null;
-      }
-    })();
-  }
-
-  return redisPromise;
-}
-
-const POSTS_KEY = 'ryda:posts';
-
-async function getDynamicPosts() {
-  try {
-    const r = await getRedis();
-    if (!r) return [];
-    const raw = await r.get(POSTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    console.error('Redis read error:', e);
-    return [];
-  }
-}
-
-async function saveDynamicPosts(posts) {
-  try {
-    const r = await getRedis();
-    if (!r) return;
-    await r.set(POSTS_KEY, JSON.stringify(posts));
-  } catch (e) {
-    console.error('Redis write error:', e);
-  }
-}
+import {
+  getAllActivePosts,
+  getPostByIdOrSlug,
+  getDynamicPosts,
+  saveDynamicPosts,
+  markAsDeleted,
+  removeDeletedMark
+} from '@/lib/postsStore';
 
 // GET /api/posts
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-  if (id) {
-    const dynamicPosts = await getDynamicPosts();
-    const found = dynamicPosts.find(p => p.id === id) || STATIC_NEWS.find(p => p.id === id);
-    if (found) return NextResponse.json(found);
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (id) {
+      const found = await getPostByIdOrSlug(id);
+      if (found) return NextResponse.json(found);
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const all = await getAllActivePosts();
+    return NextResponse.json(all);
+  } catch (err) {
+    console.error('GET /api/posts error:', err);
+    return NextResponse.json(STATIC_NEWS);
   }
-
-  const dynamicPosts = await getDynamicPosts();
-  const all = [...dynamicPosts, ...STATIC_NEWS]
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-  return NextResponse.json(all);
 }
 
 // POST /api/posts
@@ -142,10 +102,21 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
     }
 
+    // If post was marked deleted previously, unmark it
+    await removeDeletedMark(id);
+
     const posts = await getDynamicPosts();
-    const idx = posts.findIndex(p => p.id === id);
+    let idx = posts.findIndex(p => p.id === id || p.slug === id);
+
     if (idx === -1) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      // If it exists in STATIC_NEWS, clone it into dynamic posts
+      const staticPost = STATIC_NEWS.find(p => p.id === id || p.slug === id);
+      if (staticPost) {
+        posts.unshift({ ...staticPost });
+        idx = 0;
+      } else {
+        return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      }
     }
 
     let imageList = Array.isArray(images)
@@ -184,3 +155,39 @@ export async function PUT(request) {
   }
 }
 
+// DELETE /api/posts (handles /api/posts?id=... or body { id })
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get('id');
+
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {}
+
+    id = id || body.id;
+    const token = request.headers.get('x-writer-token') || body.token;
+
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
+    }
+
+    await markAsDeleted(id);
+
+    const posts = await getDynamicPosts();
+    const filtered = posts.filter(p => p.id !== id && p.slug !== id);
+    if (filtered.length !== posts.length) {
+      await saveDynamicPosts(filtered);
+    }
+
+    return NextResponse.json({ success: true, message: `Post ${id} deleted successfully` });
+  } catch (err) {
+    console.error('Delete /api/posts error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to delete post' }, { status: 500 });
+  }
+}
