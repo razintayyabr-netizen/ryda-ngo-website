@@ -928,19 +928,37 @@ async function loadPostForEdit(id) {
 async function confirmDelete(id, title) {
   if (!confirm(`Delete post:\n"${title}"?\n\nThis cannot be undone.`)) return;
 
-  try {
-    const res = await fetch(`/api/posts/${id}`, {
-      method: "DELETE",
-      headers: { "x-writer-token": writerToken }
-    });
-    if (!res.ok) throw new Error((await res.json()).error || "Delete failed");
+  const currentToken = writerToken || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem(TOKEN_KEY) : "");
+  const btn = document.querySelector(`[data-delete-id="${CSS.escape(id)}"]`);
+  const originalText = btn ? btn.textContent : "Delete";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Deleting…";
+  }
 
-    allPosts = allPosts.filter(p => p.id !== id);
+  try {
+    const res = await fetch(`/api/posts/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { "x-writer-token": currentToken }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Delete failed");
+
+    allPosts = allPosts.filter(p => p.id !== id && p.slug !== id);
     renderPostsList(allPosts);
+
+    if (editingPostId === id) {
+      clearForm();
+    }
   } catch (err) {
-    alert("Failed to delete: " + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+    alert("Failed to delete post: " + (err.message || "Unknown error"));
   }
 }
+
 
 if (postsSearch) postsSearch.addEventListener("input", () => renderPostsList(allPosts));
 if (refreshPostsBtn) refreshPostsBtn.addEventListener("click", fetchPosts);

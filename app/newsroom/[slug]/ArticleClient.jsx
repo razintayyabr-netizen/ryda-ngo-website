@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
@@ -18,6 +18,7 @@ function calcReadTime(text) {
   const words = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
   return Math.max(1, Math.ceil(words / 200));
 }
+
 
 function ShareButtons({ title, url }) {
   const [copied, setCopied] = useState(false);
@@ -279,6 +280,8 @@ export default function ArticleClient({ post: preloadedPost }) {
   const [activeModalIdx, setActiveModalIdx] = useState(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isWriter, setIsWriter] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -286,6 +289,33 @@ export default function ArticleClient({ post: preloadedPost }) {
       setIsWriter(!!token);
     }
   }, []);
+
+  const handleDeletePost = async () => {
+    if (!post) return;
+    const ok = window.confirm(`Permanently delete post:\n"${post.title}"?\n\nThis will remove the post completely from the live website.`);
+    if (!ok) return;
+
+    setIsDeleting(true);
+    try {
+      const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ryda_writer_token') || '') : '';
+      const idToDelete = post.id || post.slug || slug;
+      const res = await fetch(`/api/posts/${encodeURIComponent(idToDelete)}`, {
+        method: 'DELETE',
+        headers: { 'x-writer-token': token }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to delete post');
+
+      setToastMsg({ type: 'success', text: `✓ Post "${post.title}" deleted successfully. Redirecting to Newsroom...` });
+      setTimeout(() => {
+        window.location.href = '/newsroom';
+      }, 1000);
+    } catch (err) {
+      alert('Delete failed: ' + (err.message || 'Unknown error'));
+      setIsDeleting(false);
+    }
+  };
+
 
   const rawImages = post
     ? (Array.isArray(post.images) && post.images.length > 0
@@ -455,15 +485,41 @@ export default function ArticleClient({ post: preloadedPost }) {
                 <span>Back to Newsroom</span>
               </Link>
               {isWriter && (
-                <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="article-edit-nav-btn">
-                  <svg viewBox="0 0 20 20" fill="none" width="15" height="15">
-                    <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Edit Article</span>
-                </Link>
+                <>
+                  <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="article-edit-nav-btn">
+                    <svg viewBox="0 0 20 20" fill="none" width="15" height="15">
+                      <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Edit Article</span>
+                  </Link>
+                  <button type="button" onClick={handleDeletePost} disabled={isDeleting} className="article-delete-nav-btn" title="Delete this post">
+                    <svg viewBox="0 0 20 20" fill="none" width="15" height="15">
+                      <path d="M3 5H17M8 5V3H12V5M5 5L6 17C6 17.55 6.45 18 7 18H13C13.55 18 14 17.55 14 17L15 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>{isDeleting ? 'Deleting…' : 'Delete Article'}</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
+          {toastMsg && (
+            <div style={{
+              margin: '16px 0',
+              padding: '12px 20px',
+              borderRadius: '10px',
+              background: 'rgba(15, 166, 147, 0.2)',
+              border: '1px solid #0FA693',
+              color: '#ffffff',
+              fontWeight: '600',
+              fontSize: '0.92rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              {toastMsg.text}
+            </div>
+          )}
+
           <div className="article-meta">
             <span className="article-category-badge">{post.category}</span>
             <div className="article-meta-divider"></div>
@@ -553,14 +609,23 @@ export default function ArticleClient({ post: preloadedPost }) {
               ← Back to All Articles &amp; Stories
             </Link>
             {isWriter && (
-              <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="btn btn-primary" style={{ marginLeft: '12px' }}>
-                <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-                  <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-                </svg>
-                <span>Edit this Article</span>
-              </Link>
+              <>
+                <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="btn btn-primary" style={{ marginLeft: '12px' }}>
+                  <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                    <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Edit this Article</span>
+                </Link>
+                <button type="button" onClick={handleDeletePost} disabled={isDeleting} className="btn btn-danger-post" style={{ marginLeft: '12px' }} title="Delete this post">
+                  <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                    <path d="M3 5H17M8 5V3H12V5M5 5L6 17C6 17.55 6.45 18 7 18H13C13.55 18 14 17.55 14 17L15 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>{isDeleting ? 'Deleting…' : 'Delete this Article'}</span>
+                </button>
+              </>
             )}
           </div>
+
         </div>
       </section>
 

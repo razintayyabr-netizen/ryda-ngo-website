@@ -179,15 +179,21 @@ export async function DELETE(request) {
 
     await markAsDeleted(id);
 
-    const posts = await getDynamicPosts();
-    const filtered = posts.filter(p => p.id !== id && p.slug !== id);
-    if (filtered.length !== posts.length) {
-      await saveDynamicPosts(filtered);
-    }
-
-    return NextResponse.json({ success: true, message: `Post ${id} deleted successfully` });
+    return NextResponse.json({ success: true, message: `Post ${id} deleted successfully`, id });
   } catch (err) {
     console.error('Delete /api/posts error:', err);
     return NextResponse.json({ error: err.message || 'Failed to delete post' }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'X-Writer-Token, Content-Type',
+    },
+  });
+}
+

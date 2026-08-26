@@ -17,31 +17,74 @@ export default function NewsroomPage() {
   const [activeFilter, setActiveFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isWriter, setIsWriter] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [adminToast, setAdminToast] = useState(null);
   const gridRef = useRef(null);
 
   useEffect(() => {
-    async function loadNews() {
-      try {
-        const res = await fetch('/api/posts');
-        if (res.ok) {
-          const data = await res.json();
-          setAllNews(Array.isArray(data) ? data : (data.posts || []));
-        }
-      } catch (err) {
-        // API failed, static will be handled or fallback
-      } finally {
-        setLoading(false);
-      }
+    if (typeof window !== 'undefined') {
+      const token = sessionStorage.getItem('ryda_writer_token');
+      setIsWriter(!!token);
     }
+  }, []);
 
+  const loadNews = async () => {
+    try {
+      const res = await fetch('/api/posts');
+      if (res.ok) {
+        const data = await res.json();
+        setAllNews(Array.isArray(data) ? data : (data.posts || []));
+      }
+    } catch (err) {
+      console.error('Failed to load news:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNews();
     const safetyTimer = setTimeout(() => {
       setLoading(false);
     }, 8000);
-
-    loadNews();
-
     return () => clearTimeout(safetyTimer);
   }, []);
+
+  const handleDeleteCard = async (e, post) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const ok = window.confirm(`Permanently delete post:\n"${post.title}"?\n\nThis will remove it from the live website immediately.`);
+    if (!ok) return;
+
+    setDeletingId(post.id);
+    try {
+      const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ryda_writer_token') || '') : '';
+      const idToDelete = post.id || post.slug;
+      const res = await fetch(`/api/posts/${encodeURIComponent(idToDelete)}`, {
+        method: 'DELETE',
+        headers: { 'x-writer-token': token }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      setAllNews(prev => prev.filter(p => p.id !== post.id && p.slug !== post.slug));
+      setAdminToast(`✓ Post "${post.title}" has been deleted.`);
+      setTimeout(() => setAdminToast(null), 3500);
+    } catch (err) {
+      alert('Could not delete post: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleLogout = () => {
+    if (confirm('Log out from Writer Mode?')) {
+      try { sessionStorage.removeItem('ryda_writer_token'); } catch {}
+      setIsWriter(false);
+    }
+  };
 
   const matchesCategory = (postCat, filter) => {
     if (!filter) return true;
@@ -67,7 +110,7 @@ export default function NewsroomPage() {
       );
     });
 
-  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const sortedNews = [...filteredNews].sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
 
   useEffect(() => {
     if (!loading && gridRef.current && "IntersectionObserver" in window) {
@@ -108,6 +151,92 @@ export default function NewsroomPage() {
 
   return (
     <>
+      {/* Toast feedback for writer actions */}
+      {adminToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 99999,
+          background: '#0B4D41',
+          color: '#ffffff',
+          padding: '14px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+          border: '1px solid #0FA693',
+          fontWeight: 600,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          {adminToast}
+        </div>
+      )}
+
+      {/* Writer Admin Floating Bar */}
+      {isWriter && (
+        <div style={{
+          background: 'linear-gradient(90deg, #0B4D41, #121826)',
+          borderBottom: '1px solid rgba(15, 166, 147, 0.4)',
+          padding: '10px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          fontSize: '0.88rem',
+          color: '#ffffff',
+          position: 'sticky',
+          top: 0,
+          zIndex: 999
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              background: '#0FA693',
+              color: '#ffffff',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              fontWeight: 800,
+              fontSize: '0.75rem',
+              letterSpacing: '0.05em'
+            }}>WRITER MODE</span>
+            <span style={{ color: 'rgba(255,255,255,0.85)' }}>You can edit or delete articles directly from this page.</span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <Link href="/writer" style={{
+              background: '#0FA693',
+              color: '#ffffff',
+              padding: '5px 14px',
+              borderRadius: '6px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              fontSize: '0.84rem'
+            }}>
+              ＋ Create New Post
+            </Link>
+            <Link href="/writer" style={{
+              background: 'rgba(255,255,255,0.1)',
+              color: '#ffffff',
+              padding: '5px 14px',
+              borderRadius: '6px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              fontSize: '0.84rem'
+            }}>
+              Writer Dashboard
+            </Link>
+            <button type="button" onClick={handleLogout} style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.6)',
+              cursor: 'pointer',
+              fontSize: '0.84rem',
+              padding: '4px 8px'
+            }}>
+              Log Out
+            </button>
+          </div>
+        </div>
+      )}
+
       <main>
         {/* Hero Banner */}
         <section className="nr-hero">
@@ -176,28 +305,102 @@ export default function NewsroomPage() {
             {!loading && sortedNews.map((item, idx) => {
               const href = `/newsroom/${item.slug || item.id}`;
               const isStory = (item.category || '').toLowerCase().includes('stor');
+              const isItemDeleting = deletingId === item.id;
+
               return (
-                <Link href={href} key={item.id} className={`nr-card reveal ${isStory ? 'is-story-card' : ''}`} style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s` }}>
-                  {item.featured_image && (
-                    <div className="nr-card-image">
-                      <img src={item.featured_image} alt="" loading="lazy" />
-                      {isStory && <span className="story-ribbon">📖 Story</span>}
+                <div
+                  key={item.id}
+                  className={`nr-card-wrap ${isItemDeleting ? 'is-deleting' : ''}`}
+                  style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
+                >
+                  <Link
+                    href={href}
+                    className={`nr-card reveal ${isStory ? 'is-story-card' : ''}`}
+                    style={{ '--delay': `${Math.min(idx * 0.05, 0.3)}s`, width: '100%', height: '100%' }}
+                  >
+                    {item.featured_image && (
+                      <div className="nr-card-image">
+                        <img src={item.featured_image} alt="" loading="lazy" />
+                        {isStory && <span className="story-ribbon">📖 Story</span>}
+                      </div>
+                    )}
+                    <div className="nr-card-body">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                        <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
+                      </div>
+                      <h3>{item.title}</h3>
+                      <p>{item.summary}</p>
+                      <div className="nr-card-footer">
+                        <span className="nr-card-author">{item.author}</span>
+                        <span className="nr-card-date">{fmtDate(item.date || item.createdAt)}</span>
+                      </div>
+                      <span className="nr-card-read">
+                        {isStory ? 'Read Full Story' : 'Read Article'}
+                        <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 10H16M12 6L16 10L12 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </span>
+                    </div>
+                  </Link>
+
+                  {/* Writer quick action buttons overlay on cards */}
+                  {isWriter && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: '12px',
+                      zIndex: 10,
+                      display: 'flex',
+                      gap: '6px',
+                      background: 'rgba(18, 24, 38, 0.88)',
+                      backdropFilter: 'blur(8px)',
+                      padding: '4px 6px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                    }}>
+                      <Link
+                        href={`/writer?edit=${encodeURIComponent(item.id || item.slug)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          background: '#0FA693',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '999px',
+                          padding: '3px 10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                        title="Edit this post in Writer Panel"
+                      >
+                        ✏️ Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteCard(e, item)}
+                        disabled={isItemDeleting}
+                        style={{
+                          background: 'rgba(220, 38, 38, 0.85)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '999px',
+                          padding: '3px 10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: isItemDeleting ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                        title="Permanently delete this post"
+                      >
+                        {isItemDeleting ? '…' : '🗑️ Delete'}
+                      </button>
                     </div>
                   )}
-                  <div className="nr-card-body">
-                    <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
-                    <h3>{item.title}</h3>
-                    <p>{item.summary}</p>
-                    <div className="nr-card-footer">
-                      <span className="nr-card-author">{item.author}</span>
-                      <span className="nr-card-date">{fmtDate(item.date)}</span>
-                    </div>
-                    <span className="nr-card-read">
-                      {isStory ? 'Read Full Story' : 'Read Article'}
-                      <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 10H16M12 6L16 10L12 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </span>
-                  </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -207,3 +410,4 @@ export default function NewsroomPage() {
     </>
   );
 }
+
