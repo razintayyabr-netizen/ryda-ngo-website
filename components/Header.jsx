@@ -34,6 +34,8 @@ export default function Header() {
     return pathname === href;
   };
 
+  if (pathname === '/writer') return null;
+
   return (
     <>
       <header className={`is-header ${scrolled ? 'scrolled' : ''}`}>

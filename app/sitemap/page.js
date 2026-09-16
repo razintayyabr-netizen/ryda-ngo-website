@@ -1,18 +1,18 @@
-import Header from '@/components/Header';
+import Link from 'next/link';
 import Footer from '@/components/Footer';
 
 export default function Sitemap() {
-  const baseUrl = 'https://ryda-rohingya.org';
+  const baseUrl = 'https://rydarohingya.org';
   
   const links = [
-    { url: baseUrl, label: 'Home' },
-    { url: `${baseUrl}/newsroom`, label: 'Newsroom' },
-    { url: `${baseUrl}/writer`, label: 'Writer Panel' },
+    { href: '/', url: baseUrl, label: 'Home' },
+    { href: '/about', url: `${baseUrl}/about`, label: 'About RYDA' },
+    { href: '/newsroom', url: `${baseUrl}/newsroom`, label: 'Newsroom & Articles' },
+    { href: '/writer', url: `${baseUrl}/writer`, label: 'Writer Panel' },
   ];
 
   return (
     <>
-      <Header />
       <main style={{
         minHeight: '80vh',
         display: 'flex',
@@ -57,8 +57,8 @@ export default function Sitemap() {
             textAlign: 'left'
           }}>
             {links.map(link => (
-              <li key={link.url}>
-                <a href={link.url} style={{
+              <li key={link.href}>
+                <Link href={link.href} style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -75,7 +75,7 @@ export default function Sitemap() {
                   boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)'
                 }}>{link.label}
                   <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontFamily: '"JetBrains Mono", monospace' }}>{link.url}</span>
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

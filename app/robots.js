@@ -7,6 +7,6 @@ export default function robots() {
         disallow: ['/writer', '/api/'],
       },
     ],
-    sitemap: 'https://ryda-rohingya.org/sitemap.xml',
+    sitemap: 'https://rydarohingya.org/sitemap.xml',
   };
 }

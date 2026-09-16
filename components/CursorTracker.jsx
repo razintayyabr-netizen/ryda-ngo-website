@@ -28,13 +28,9 @@ export default function CursorTracker() {
     };
 
     const handleMouseOver = (e) => {
-      if (
-        e.target.tagName.toLowerCase() === 'a' ||
-        e.target.tagName.toLowerCase() === 'button' ||
-        e.target.closest('a') ||
-        e.target.closest('button') ||
-        e.target.closest('.tab')
-      ) {
+      const el = e.target instanceof Element ? e.target : e.target?.parentElement;
+      if (!el) return;
+      if (el.closest('a, button, .tab, [role="button"], input, select, textarea')) {
         setIsHovered(true);
       }
     };

@@ -1,4 +1,3 @@
-import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BackToTop from '@/components/BackToTop';
 import ScrollReveal from '@/components/ScrollReveal';
@@ -65,7 +64,6 @@ const values = [
 export default function AboutPage() {
   return (
     <>
-      <Header />
       <main className="about-page">
         {/* Hero */}
         <section className="about-hero">

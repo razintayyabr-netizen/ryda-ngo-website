@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import './writer.css';
 
 export const metadata = {
@@ -220,7 +221,7 @@ const rawHTML = `
                   <div class="dropzone-text">
                     <strong>Drag &amp; Drop photos here</strong> or <span class="dropzone-link">browse files</span>
                   </div>
-                  <span class="dropzone-hint">Upload multiple JPG, PNG, WebP photos (up to 6MB each). Add captions and insert anywhere in the text!</span>
+                  <span class="dropzone-hint">Upload multiple JPG, PNG, WebP photos (up to 6MB each). Photos are preserved in full original uncropped resolution across all orientations.</span>
                 </div>
               </div>
 
@@ -378,7 +379,7 @@ export default function WriterPanel() {
   return (
     <>
       <div dangerouslySetInnerHTML={{ __html: rawHTML }} />
-      <script src="/writer.js"></script>
+      <Script src="/writer.js" strategy="afterInteractive" />
     </>
   );
 }

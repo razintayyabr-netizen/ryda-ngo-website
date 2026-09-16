@@ -86,9 +86,9 @@ function ShareButtons({ title, url }) {
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
           <span>WhatsApp</span>
         </a>
-        <a href={`https://uywnix.com/share?url=${encodeURIComponent(freshUrl)}&title=${encodeURIComponent(title)}`} target="_blank" rel="noreferrer" className="share-btn share-uywni" aria-label="Share on UYWNI">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span>UYWNI</span>
+        <a href={`https://t.me/share/url?url=${encodeURIComponent(freshUrl)}&text=${encodeURIComponent(title)}`} target="_blank" rel="noreferrer" className="share-btn share-telegram" aria-label="Share on Telegram">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+          <span>Telegram</span>
         </a>
         <button onClick={handleCopy} className={`share-btn share-copy ${copied ? 'is-copied' : ''}`} aria-label="Copy link">
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" strokeWidth="2"/></svg>
@@ -190,16 +190,19 @@ function LightboxModal({ images, activeIdx, onClose, onPrev, onNext }) {
 
         .lightbox-image-container {
           max-width: 100%;
-          max-height: 70vh;
+          max-height: 80vh;
           overflow: hidden;
           border-radius: 12px;
           box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .lightbox-image {
           display: block;
           max-width: 100%;
-          max-height: 70vh;
+          max-height: 80vh;
           object-fit: contain;
         }
 
@@ -772,12 +775,12 @@ export default function ArticleClient({ post: preloadedPost }) {
         .share-whatsapp:hover {
           background: #1ebd56;
         }
-        .share-uywni {
-          background: linear-gradient(135deg, #6366F1, #8B5CF6);
+        .share-telegram {
+          background: #229ED9;
           color: #ffffff !important;
         }
-        .share-uywni:hover {
-          background: linear-gradient(135deg, #4F46E5, #7C3AED);
+        .share-telegram:hover {
+          background: #1b8ec3;
         }
         .share-copy {
           background: rgba(255,255,255,0.1);
@@ -798,6 +801,21 @@ export default function ArticleClient({ post: preloadedPost }) {
         }
         .article-featured-image {
           position: relative;
+          width: 100%;
+          border-radius: var(--r-lg, 16px);
+          overflow: hidden;
+          background: #090e17;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .article-featured-image img {
+          width: 100%;
+          height: auto;
+          max-height: 720px;
+          object-fit: contain;
+          display: block;
         }
         .photo-caption-text {
           font-size: 0.88rem;
@@ -856,8 +874,11 @@ export default function ArticleClient({ post: preloadedPost }) {
           border-radius: 14px;
           overflow: hidden;
           cursor: pointer;
-          background: #1A2232;
+          background: #090e17;
           border: 1px solid rgba(255,255,255,0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
           transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .gallery-card:hover {
@@ -868,7 +889,7 @@ export default function ArticleClient({ post: preloadedPost }) {
         .gallery-card img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
         }
         .gallery-card-caption {
           margin-top: 8px;

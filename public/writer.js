@@ -3,6 +3,7 @@
    Story Quotations, In-Body Photo Inserter, Drag-and-Drop Uploader,
    Inquiries Manager & Multi-Photo Gallery
    ============================================================ */
+(function() {
 "use strict";
 
 const TOKEN_KEY = "ryda_writer_token";
@@ -1057,10 +1058,17 @@ function showUploadStatus(msg, type) {
 }
 
 // Handle URL parameter edit (?edit=post-id)
-window.addEventListener("DOMContentLoaded", () => {
+function initWriter() {
   const urlParams = new URLSearchParams(window.location.search);
   const editId = urlParams.get("edit");
   if (editId) {
     loadPostForEdit(editId);
   }
-});
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", initWriter);
+} else {
+  initWriter();
+}
+})();

@@ -302,7 +302,7 @@ export default function Home() {
               </div>
               <div className="is-contact-item">
                 <div className="is-contact-icon">🌐</div>
-                <div><h4>Website</h4><p>www.rydango.org</p></div>
+                <div><h4>Website</h4><p>rydarohingya.org</p></div>
               </div>
             </div>
             <ContactForm />
