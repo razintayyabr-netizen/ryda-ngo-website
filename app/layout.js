@@ -1,6 +1,7 @@
 import './globals.css';
 import Header from '@/components/Header';
 import CursorTracker from '@/components/CursorTracker';
+import ViewTracker from '@/components/ViewTracker';
 
 export const metadata = {
   metadataBase: new URL('https://rydarohingya.org'),
@@ -102,6 +103,7 @@ export default function RootLayout({ children }) {
       <body>
         <CursorTracker />
         <Header />
+        <ViewTracker />
         {children}
       </body>
     </html>

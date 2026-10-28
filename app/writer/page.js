@@ -56,6 +56,10 @@ const rawHTML = `
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><rect x="3" y="4" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 8.5H13.5M6.5 12H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           All Published Posts
         </button>
+        <button class="sb-link" data-panel="analytics" type="button">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M3 17V10M8 17V5M13 17V8M18 17V3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Audience &amp; Views
+        </button>
         <button class="sb-link" data-panel="inquiries" type="button" id="sb-inquiries-link">
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M3 4H17C17.55 4 18 4.45 18 5V15C18 15.55 17.55 16 17 16H3C2.45 16 2 15.55 2 15V5C2 4.45 2.45 4 3 4Z" stroke="currentColor" stroke-width="1.5"/><path d="M2 5L10 11L18 5" stroke="currentColor" stroke-width="1.5"/></svg>
           Inquiries &amp; Messages
@@ -307,6 +311,31 @@ const rawHTML = `
 
         <div id="posts-list" class="posts-list">
           <div class="posts-loading">Loading posts…</div>
+        </div>
+      </div>
+
+      <!-- ─── AUDIENCE & VIEWS PANEL ──────────────────────────────── -->
+      <div class="panel" id="panel-analytics" hidden>
+        <div class="panel-header">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h1>Audience &amp; Views</h1>
+              <p>Who is reading RYDA — article reads, unique readers, site traffic and writer-panel (backend) visits. Bots and crawlers are excluded.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="an-range" class="an-range" aria-label="Date range">
+                <option value="7">Last 7 days</option>
+                <option value="14" selected>Last 14 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+              <button class="btn btn-outline btn-sm" type="button" id="refresh-analytics">↻ Refresh</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="analytics-root">
+          <div class="posts-loading">Loading audience statistics…</div>
         </div>
       </div>
 

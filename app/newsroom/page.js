@@ -20,6 +20,7 @@ export default function NewsroomPage() {
   const [isWriter, setIsWriter] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [adminToast, setAdminToast] = useState(null);
+  const [viewMap, setViewMap] = useState({});
   const gridRef = useRef(null);
 
   useEffect(() => {
@@ -45,6 +46,10 @@ export default function NewsroomPage() {
 
   useEffect(() => {
     loadNews();
+    fetch('/api/views?all=1', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : {}))
+      .then(d => setViewMap(d && typeof d === 'object' ? d : {}))
+      .catch(() => {});
     const safetyTimer = setTimeout(() => {
       setLoading(false);
     }, 8000);
@@ -327,6 +332,12 @@ export default function NewsroomPage() {
                     <div className="nr-card-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                         <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
+                        {viewMap[item.id] > 0 && (
+                          <span className="nr-card-views" title={`${viewMap[item.id].toLocaleString('en-US')} views`}>
+                            <svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8"/></svg>
+                            {viewMap[item.id].toLocaleString('en-US')}
+                          </span>
+                        )}
                       </div>
                       <h3>{item.title}</h3>
                       <p>{item.summary}</p>

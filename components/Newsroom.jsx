@@ -14,6 +14,7 @@ function fmtDate(iso) {
 
 export default function Newsroom() {
   const [allNews, setAllNews] = useState(STATIC_NEWS);
+  const [viewMap, setViewMap] = useState({});
   const [activeFilter, setActiveFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [isWriter, setIsWriter] = useState(false);
@@ -23,6 +24,11 @@ export default function Newsroom() {
     // Check if writer is logged in
     const token = typeof window !== 'undefined' ? sessionStorage.getItem('ryda_writer_token') : null;
     setIsWriter(!!token);
+
+    fetch('/api/views?all=1', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : {}))
+      .then(d => setViewMap(d && typeof d === 'object' ? d : {}))
+      .catch(() => {});
 
     async function loadNews() {
       try {
@@ -147,7 +153,15 @@ export default function Newsroom() {
                     {isStory && <span className="story-ribbon">📖 Story</span>}
                   </div>
                 )}
-                <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span className={`news-badge ${isStory ? 'badge-story' : ''}`}>{item.category}</span>
+                  {viewMap[item.id] > 0 && (
+                    <span className="nr-card-views" title={`${viewMap[item.id].toLocaleString('en-US')} views`}>
+                      <svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8"/></svg>
+                      {viewMap[item.id].toLocaleString('en-US')}
+                    </span>
+                  )}
+                </div>
                 <h3>{item.title}</h3>
                 <p>{item.summary}</p>
                 <div className="news-meta">

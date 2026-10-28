@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
@@ -17,6 +17,45 @@ function calcReadTime(text) {
   if (!text) return 1;
   const words = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
   return Math.max(1, Math.ceil(words / 200));
+}
+
+function fmtCount(n) {
+  const num = Number(n || 0);
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(num >= 10_000_000 ? 0 : 1).replace(/\.0$/, '')}M`;
+  if (num >= 10_000) return `${(num / 1000).toFixed(num >= 100_000 ? 0 : 1).replace(/\.0$/, '')}K`;
+  return num.toLocaleString('en-US');
+}
+
+function initials(name) {
+  const parts = String(name || 'RYDA Team').trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || 'R') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+const QUOTE_START = /^[\s\u00a0]*["“‘«„]/;
+
+/**
+ * Polishes writer-produced HTML after render:
+ * - paragraphs/blocks that open with a quotation mark become styled inline quotes
+ * - stray empty <div><br></div> spacer blocks are collapsed for clean rhythm
+ */
+function enhanceArticleBody(root) {
+  if (!root) return;
+  const blocks = root.querySelectorAll('p, div');
+  blocks.forEach(el => {
+    if (el.closest('blockquote, .testimony-card, figure')) return;
+    // Only leaf-ish text blocks (no nested block elements)
+    if (el.querySelector('p, div, blockquote, figure, ul, ol, h2, h3, img')) return;
+    const text = (el.textContent || '').replace(/\u00a0/g, ' ').trim();
+    if (!text) {
+      if (el.tagName === 'DIV' && el.innerHTML.replace(/\s|&nbsp;/g, '') .match(/^(<br\/?>)*$/i)) {
+        el.classList.add('para-spacer');
+      }
+      return;
+    }
+    if (QUOTE_START.test(text) && text.length >= 25) {
+      el.classList.add('inline-quote');
+    }
+  });
 }
 
 
@@ -285,6 +324,34 @@ export default function ArticleClient({ post: preloadedPost }) {
   const [isWriter, setIsWriter] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
+  const [views, setViews] = useState(null);
+  const gotViews = useRef(false);
+
+  // Live view counter — fed by the global ViewTracker (counts once per session)
+  useEffect(() => {
+    if (!post) return;
+    const keys = [post.slug, post.id].filter(Boolean).map(k => `/newsroom/${k}`);
+    const matches = (d) => d && keys.some(k => decodeURIComponent(d.path || '').replace(/\/$/, '') === k);
+    const onViews = (e) => { if (matches(e.detail)) { gotViews.current = true; setViews({ views: e.detail.views, unique: e.detail.unique }); } };
+    if (matches(window.__rydaViews)) { gotViews.current = true; setViews({ views: window.__rydaViews.views, unique: window.__rydaViews.unique }); }
+    window.addEventListener('ryda:views', onViews);
+    // Fallback fetch in case the tracker event already fired / was blocked
+    const t = setTimeout(() => {
+      if (gotViews.current) return;
+      fetch(`/api/views?id=${encodeURIComponent(post.id || post.slug)}`, { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => { if (!gotViews.current) setViews({ views: d.views || 0, unique: d.unique || 0 }); })
+        .catch(() => {});
+    }, 1500);
+    return () => { window.removeEventListener('ryda:views', onViews); clearTimeout(t); };
+  }, [post]);
+
+  // Typography polish for quotes & spacing inside the article body
+  useEffect(() => {
+    if (!post) return;
+    const id = requestAnimationFrame(() => enhanceArticleBody(document.querySelector('.article-body')));
+    return () => cancelAnimationFrame(id);
+  }, [post]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -523,41 +590,46 @@ export default function ArticleClient({ post: preloadedPost }) {
             </div>
           )}
 
-          <div className="article-meta">
+          <div className="article-kicker">
             <span className="article-category-badge">{post.category}</span>
-            <div className="article-meta-divider"></div>
-            <div className="article-meta-item">
-              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><circle cx="10" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M3 18C3 14.13 6.13 11 10 11C13.87 11 17 14.13 17 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              <span>{post.author}</span>
-            </div>
-            <div className="article-meta-divider"></div>
-            <div className="article-meta-item">
-              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><rect x="3" y="4" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M3 8H17M7 2V5M13 2V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              <span>{fmtDate(post.date)}</span>
-            </div>
-            <div className="article-meta-divider"></div>
-            <div className="article-meta-item read-time-tag">
-              ⏱️ <span>{readTime} min read</span>
-            </div>
-            {post.tags && post.tags.length > 0 && (
-              <>
-                <div className="article-meta-divider"></div>
-                <div className="article-tags">
-                  {post.tags.map(t => <span key={t} className="article-tag">#{t}</span>)}
-                </div>
-              </>
+            {views !== null && views.views > 0 && (
+              <span className="article-trending-pill" title="Live reader count">
+                <span className="live-dot" aria-hidden="true"></span>
+                {fmtCount(views.views)} {views.views === 1 ? 'read' : 'reads'}
+              </span>
             )}
           </div>
+
           <h1 className="article-title">{post.title}</h1>
+
+          {post.summary && <p className="article-dek">{post.summary}</p>}
+
+          <div className="article-byline">
+            <div className="byline-avatar" aria-hidden="true">{initials(post.author)}</div>
+            <div className="byline-text">
+              <span className="byline-name">By {post.author || 'RYDA Team'}</span>
+              <div className="byline-meta">
+                <time dateTime={post.date}>{fmtDate(post.date)}</time>
+                <span className="byline-dot" aria-hidden="true">•</span>
+                <span>{readTime} min read</span>
+                <span className="byline-dot" aria-hidden="true">•</span>
+                <span className="byline-views" title={views && views.unique ? `${fmtCount(views.unique)} unique readers` : 'Article views'}>
+                  <svg viewBox="0 0 24 24" fill="none" width="15" height="15" aria-hidden="true"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8"/></svg>
+                  {views === null ? '—' : fmtCount(views.views)} {views && views.views === 1 ? 'view' : 'views'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="article-content-section">
         <div className="article-container">
           {images.length > 0 && (
-            <div className="article-featured-image-wrap">
-              <div className="article-featured-image" onClick={() => setActiveModalIdx(0)} style={{ cursor: 'pointer' }} title="Click to open photo viewer">
-                <img src={images[0].url} alt={post.title} />
+            <figure className="article-featured-image-wrap">
+              <div className="article-featured-image" onClick={() => setActiveModalIdx(0)} style={{ cursor: 'zoom-in' }} title="Click to open photo viewer">
+                <div className="featured-backdrop" style={{ backgroundImage: `url("${images[0].url}")` }} aria-hidden="true"></div>
+                <img src={images[0].url} alt={images[0].caption || post.title} />
                 {images.length > 1 && (
                   <div className="photo-badge-overlay">
                     📷 {images.length} Photos — Click to expand
@@ -566,21 +638,20 @@ export default function ArticleClient({ post: preloadedPost }) {
               </div>
               {(images[0].caption || images[0].credit) && (
                 <figcaption className="photo-caption-text">
-                  {images[0].caption && <span className="photo-caption-main">📷 {images[0].caption}</span>}
-                  {images[0].credit && <span className="photo-caption-sub"> ({images[0].credit})</span>}
+                  {images[0].caption && <span className="photo-caption-main">{images[0].caption}</span>}
+                  {images[0].credit && <span className="photo-caption-sub">{images[0].credit}</span>}
                 </figcaption>
               )}
-            </div>
+            </figure>
           )}
 
-          <div className="article-summary">
-            <div className="article-summary-icon">
-              <svg viewBox="0 0 20 20" fill="none" width="20" height="20"><path d="M10 3L12 8.5H18L13 12L15 17.5L10 14L5 17.5L7 12L2 8.5H8L10 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-            </div>
-            <p>{post.summary}</p>
-          </div>
-
           <article className="article-body editorial-typography" dangerouslySetInnerHTML={{ __html: post.content || '<p><em>Content not available.</em></p>' }} />
+
+          {post.tags && post.tags.length > 0 && (
+            <div className="article-tags-footer">
+              {post.tags.map(t => <span key={t} className="article-tag-chip">#{String(t).trim()}</span>)}
+            </div>
+          )}
 
           {/* Multi-Photo Gallery Grid */}
           {images.length > 1 && (
@@ -702,19 +773,18 @@ export default function ArticleClient({ post: preloadedPost }) {
         .share-section {
           margin-top: 52px;
           padding: 26px 30px;
-          background: rgba(18, 24, 38, 0.85);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: linear-gradient(135deg, #ffffff 0%, #f4f8f4 100%);
+          border: 1px solid #e3ebe4;
           border-radius: 20px;
-          box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+          box-shadow: 0 18px 40px -28px rgba(10, 31, 10, 0.35);
         }
         .share-title {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.85rem;
+          font-family: 'Inter', sans-serif;
+          font-size: 0.78rem;
           font-weight: 800;
-          letter-spacing: 0.14em;
+          letter-spacing: 0.16em;
           text-transform: uppercase;
-          color: #0FA693;
+          color: #1b5e20;
           margin-bottom: 18px;
         }
         .share-grid {
@@ -783,13 +853,14 @@ export default function ArticleClient({ post: preloadedPost }) {
           background: #1b8ec3;
         }
         .share-copy {
-          background: rgba(255,255,255,0.1);
-          color: #ffffff !important;
-          border: 1px solid rgba(255,255,255,0.2);
+          background: #ffffff;
+          color: #1a1a1a !important;
+          border: 1px solid #d5ded6;
         }
         .share-copy:hover {
           background: #0FA693;
           border-color: #0FA693;
+          color: #ffffff !important;
         }
         .share-copy.is-copied {
           background: #0FA693;
@@ -797,42 +868,66 @@ export default function ArticleClient({ post: preloadedPost }) {
         }
 
         .article-featured-image-wrap {
-          margin-bottom: 24px;
+          margin: 0 0 40px;
         }
         .article-featured-image {
           position: relative;
           width: 100%;
-          border-radius: var(--r-lg, 16px);
+          border-radius: 18px;
           overflow: hidden;
-          background: #090e17;
+          background: #0b1410;
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          min-height: 260px;
+          box-shadow: 0 30px 60px -24px rgba(10, 31, 10, 0.45), 0 0 0 1px rgba(10, 31, 10, 0.06);
+          isolation: isolate;
+        }
+        /* Blurred ambient fill so letterboxing looks intentional — photo is never cropped */
+        .featured-backdrop {
+          position: absolute;
+          inset: -40px;
+          background-size: cover;
+          background-position: center;
+          filter: blur(38px) saturate(1.25) brightness(0.62);
+          transform: scale(1.1);
+          z-index: -1;
         }
         .article-featured-image img {
-          width: 100%;
+          position: relative;
+          width: auto;
+          max-width: 100%;
           height: auto;
-          max-height: 720px;
+          max-height: min(78vh, 760px);
           object-fit: contain;
           display: block;
+          margin: 0 auto;
+          transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .article-featured-image:hover img {
+          transform: scale(1.012);
         }
         .photo-caption-text {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 4px 10px;
           font-size: 0.88rem;
-          color: rgba(255, 255, 255, 0.8);
-          margin-top: 10px;
-          padding: 6px 12px;
-          border-left: 3px solid #0FA693;
-          background: rgba(255, 255, 255, 0.03);
-          border-radius: 0 8px 8px 0;
+          line-height: 1.55;
+          margin-top: 14px;
+          padding: 0 2px 12px;
+          border-bottom: 1px solid var(--color-border, #e0e0e0);
         }
         .photo-caption-main {
-          font-weight: 600;
-          color: #ffffff;
+          color: #3d4a40;
+          font-weight: 500;
         }
         .photo-caption-sub {
-          color: rgba(200, 149, 42, 0.95);
-          font-style: italic;
+          color: #8a6a1f;
+          font-size: 0.8rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
         }
         .photo-badge-overlay {
           position: absolute;
@@ -848,15 +943,15 @@ export default function ArticleClient({ post: preloadedPost }) {
           box-shadow: 0 4px 16px rgba(0,0,0,0.35);
         }
         .article-gallery-section {
-          margin: 44px 0;
-          padding-top: 30px;
-          border-top: 1px solid rgba(255,255,255,0.08);
+          margin: 48px 0;
+          padding-top: 32px;
+          border-top: 1px solid var(--color-border, #e0e0e0);
         }
         .gallery-title {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 1.25rem;
+          font-family: var(--font-heading, 'Outfit'), sans-serif;
+          font-size: 1.3rem;
           font-weight: 700;
-          color: #fff;
+          color: #0d3d13;
           margin-bottom: 20px;
         }
         .article-gallery-grid {
@@ -900,12 +995,12 @@ export default function ArticleClient({ post: preloadedPost }) {
         .gallery-card-caption .caption-title {
           font-size: 0.82rem;
           font-weight: 600;
-          color: rgba(255, 255, 255, 0.9);
+          color: #2b352d;
           line-height: 1.35;
         }
         .gallery-card-caption .caption-credit {
           font-size: 0.74rem;
-          color: rgba(200, 149, 42, 0.9);
+          color: #8a6a1f;
         }
         .gallery-card-zoom {
           position: absolute;

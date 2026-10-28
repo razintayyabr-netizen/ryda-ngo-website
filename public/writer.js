@@ -14,6 +14,7 @@ const VALID_TOKEN = "RYDA5555";
 let writerToken = typeof sessionStorage !== "undefined" ? (sessionStorage.getItem(TOKEN_KEY) || "") : "";
 let allPosts = [];
 let allInquiries = [];
+let postViewMap = {};
 let currentPanel = "new-post";
 let isEditorPreview = false;
 let uploadedImages = []; // [{ url: string, caption: string, credit: string }]
@@ -197,6 +198,7 @@ function switchPanel(name) {
   sbLinks.forEach(l => l.classList.toggle("is-active", l.dataset.panel === name));
   if (name === "all-posts") fetchPosts();
   if (name === "inquiries") fetchInquiries();
+  if (name === "analytics") fetchAnalytics();
 }
 
 sbLinks.forEach(l => {
@@ -823,11 +825,15 @@ async function fetchPosts() {
   postsList.innerHTML = '<div class="posts-loading">Loading published stories and articles...</div>';
 
   try {
-    const res = await fetch("/api/posts");
+    const [res, viewsRes] = await Promise.all([
+      fetch("/api/posts"),
+      fetch("/api/views?all=1", { cache: "no-store" }).catch(() => null),
+    ]);
     if (!res.ok) throw new Error("Failed to fetch");
 
     const data = await res.json();
     allPosts = Array.isArray(data) ? data : (data.posts || []);
+    try { postViewMap = viewsRes && viewsRes.ok ? await viewsRes.json() : {}; } catch { postViewMap = {}; }
     renderPostsList(allPosts);
   } catch (err) {
     console.error("Fetch error:", err);
@@ -868,14 +874,17 @@ function buildPostRow(post) {
   const catSafe   = esc(post.category);
   const authSafe  = esc(post.author);
   const imageCount = (post.images && post.images.length) || (post.featured_image ? 1 : 0);
+  const views = Number(postViewMap[post.id] || 0);
+  const href = `/newsroom/${encodeURIComponent(post.slug || post.id)}`;
   return `
   <div class="post-row">
     <div class="post-row-info">
       <span class="post-row-badge">${catSafe}</span> ${imageCount > 0 ? `<span class="post-row-badge" style="background:rgba(200,149,42,0.18);color:#C8952A;">${imageCount} photo${imageCount > 1 ? 's' : ''}</span>` : ''}
       <div class="post-row-title" title="${titleSafe}">${titleSafe}</div>
-      <div class="post-row-meta">${authSafe} · ${esc(date)}</div>
+      <div class="post-row-meta">${authSafe} · ${esc(date)} · <span class="post-row-views">👁 ${views.toLocaleString("en-US")} view${views === 1 ? "" : "s"}</span></div>
     </div>
     <div class="post-row-actions">
+      <a class="btn btn-outline btn-sm" href="${href}" target="_blank" rel="noopener">View ↗</a>
       <button class="btn btn-outline btn-sm" type="button"
         data-edit-id="${esc(post.id)}">Edit</button>
       <button class="btn btn-danger" type="button"
@@ -963,6 +972,173 @@ async function confirmDelete(id, title) {
 
 if (postsSearch) postsSearch.addEventListener("input", () => renderPostsList(allPosts));
 if (refreshPostsBtn) refreshPostsBtn.addEventListener("click", fetchPosts);
+
+// ─── Audience & Views Analytics ───────────────────────────
+const analyticsRoot = document.getElementById("analytics-root");
+const analyticsRange = document.getElementById("an-range");
+const refreshAnalyticsBtn = document.getElementById("refresh-analytics");
+
+const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
+const COUNTRY_NAMES = (() => {
+  try { return new Intl.DisplayNames(["en"], { type: "region" }); } catch { return null; }
+})();
+const countryLabel = (code) => {
+  if (!code) return "Unknown";
+  let flag = "";
+  try { flag = code.length === 2 ? String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0))) + " " : ""; } catch {}
+  let name = code;
+  try { name = (COUNTRY_NAMES && COUNTRY_NAMES.of(code)) || code; } catch {}
+  return flag + name;
+};
+
+async function fetchAnalytics() {
+  if (!analyticsRoot) return;
+  analyticsRoot.innerHTML = '<div class="posts-loading">Loading audience statistics…</div>';
+  const days = analyticsRange ? analyticsRange.value : "14";
+  const token = writerToken || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem(TOKEN_KEY) : "") || "";
+  try {
+    const [statsRes, postsRes] = await Promise.all([
+      fetch(`/api/views?stats=1&days=${encodeURIComponent(days)}`, { headers: { "x-writer-token": token }, cache: "no-store" }),
+      allPosts.length ? Promise.resolve(null) : fetch("/api/posts"),
+    ]);
+    if (!statsRes.ok) throw new Error(statsRes.status === 401 ? "Unauthorized — please log in again." : "Failed to load statistics");
+    const stats = await statsRes.json();
+    if (postsRes && postsRes.ok) {
+      const d = await postsRes.json();
+      allPosts = Array.isArray(d) ? d : (d.posts || []);
+    }
+    renderAnalytics(stats);
+  } catch (err) {
+    analyticsRoot.innerHTML = '<div class="posts-empty">Could not load statistics. ' + esc(err.message) + '</div>';
+  }
+}
+
+function barList(items, labelFn, emptyText) {
+  if (!items || !items.length) return `<div class="an-empty">${esc(emptyText)}</div>`;
+  const max = Math.max(...items.map(i => i.count), 1);
+  return items.map(i => `
+    <div class="an-bar-row">
+      <div class="an-bar-label" title="${esc(labelFn(i.key))}">${esc(labelFn(i.key))}</div>
+      <div class="an-bar-track"><div class="an-bar-fill" style="width:${Math.max(3, (i.count / max) * 100)}%"></div></div>
+      <div class="an-bar-val">${fmtN(i.count)}</div>
+    </div>`).join("");
+}
+
+function renderTrendChart(daily) {
+  const W = 760, H = 220, padL = 40, padR = 12, padT = 16, padB = 30;
+  const n = daily.length;
+  const series = daily.map(d => ({ date: d.date, reads: d.article, pages: d.page + d.article, writer: d.writer, unique: d.unique }));
+  const max = Math.max(5, ...series.map(s => s.pages));
+  const niceMax = Math.ceil(max / 5) * 5;
+  const x = (i) => padL + (n === 1 ? (W - padL - padR) / 2 : (i * (W - padL - padR)) / (n - 1));
+  const y = (v) => padT + (H - padT - padB) * (1 - v / niceMax);
+  const line = (key) => series.map((s, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(s[key]).toFixed(1)}`).join(" ");
+  const area = (key) => `${line(key)} L${x(n - 1).toFixed(1)},${y(0)} L${x(0).toFixed(1)},${y(0)} Z`;
+  const grid = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const v = Math.round(niceMax * f);
+    return `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" class="an-grid"/><text x="${padL - 8}" y="${y(v) + 4}" class="an-axis" text-anchor="end">${fmtN(v)}</text>`;
+  }).join("");
+  const step = Math.ceil(n / 7);
+  const labels = series.map((s, i) => (i % step === 0 || i === n - 1)
+    ? `<text x="${x(i)}" y="${H - 8}" class="an-axis" text-anchor="middle">${new Date(s.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</text>` : "").join("");
+  const dots = series.map((s, i) => `<circle cx="${x(i)}" cy="${y(s.reads)}" r="3.2" class="an-dot"><title>${s.date}\nArticle reads: ${fmtN(s.reads)}\nAll views: ${fmtN(s.pages)}\nUnique visitors: ${fmtN(s.unique)}\nWriter panel: ${fmtN(s.writer)}</title></circle>`).join("");
+  return `
+    <svg viewBox="0 0 ${W} ${H}" class="an-chart" role="img" aria-label="Daily views trend">
+      <defs>
+        <linearGradient id="anGradA" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#0FA693" stop-opacity="0.35"/><stop offset="100%" stop-color="#0FA693" stop-opacity="0"/></linearGradient>
+        <linearGradient id="anGradB" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#C8952A" stop-opacity="0.18"/><stop offset="100%" stop-color="#C8952A" stop-opacity="0"/></linearGradient>
+      </defs>
+      ${grid}
+      <path d="${area("pages")}" fill="url(#anGradB)"/>
+      <path d="${line("pages")}" class="an-line-b"/>
+      <path d="${area("reads")}" fill="url(#anGradA)"/>
+      <path d="${line("reads")}" class="an-line-a"/>
+      ${dots}
+      ${labels}
+    </svg>
+    <div class="an-legend"><span><i style="background:#0FA693"></i>Article reads</span><span><i style="background:#C8952A"></i>All site views</span></div>`;
+}
+
+function renderAnalytics(s) {
+  const t = s.totals || {};
+  const daily = s.daily || [];
+  const rangeReads = daily.reduce((a, d) => a + d.article, 0);
+  const rangeViews = daily.reduce((a, d) => a + d.article + d.page, 0);
+  const rangeWriter = daily.reduce((a, d) => a + d.writer, 0);
+  const today = daily[daily.length - 1] || { article: 0, page: 0, writer: 0, unique: 0 };
+
+  // Map post ids to titles
+  const byId = {};
+  allPosts.forEach(p => { if (p.id) byId[p.id] = p; if (p.slug) byId[p.slug] = p; });
+  const posts = (s.posts || [])
+    .filter(p => byId[p.id])
+    .sort((a, b) => b.views - a.views);
+  const avgPerArticle = posts.length ? Math.round(posts.reduce((a, p) => a + p.views, 0) / posts.length) : 0;
+  const unread = allPosts.filter(p => !(s.posts || []).some(x => x.id === p.id)).length;
+
+  const kpi = (label, value, sub, accent) => `
+    <div class="an-kpi ${accent || ""}">
+      <div class="an-kpi-label">${label}</div>
+      <div class="an-kpi-value">${value}</div>
+      <div class="an-kpi-sub">${sub}</div>
+    </div>`;
+
+  const rows = posts.slice(0, 25).map((p, i) => {
+    const post = byId[p.id];
+    const href = `/newsroom/${encodeURIComponent(post.slug || post.id)}`;
+    const share = t.articleViews ? ((p.views / t.articleViews) * 100).toFixed(1) : "0.0";
+    return `
+      <tr>
+        <td class="an-rank">${i + 1}</td>
+        <td class="an-title-cell"><a href="${href}" target="_blank" rel="noopener">${esc(post.title)}</a><span>${esc(post.category || "")} · ${esc(post.author || "RYDA Team")}</span></td>
+        <td class="an-num"><strong>${fmtN(p.views)}</strong></td>
+        <td class="an-num">${fmtN(p.unique)}</td>
+        <td class="an-num">${p.week ? `<span class="an-up">+${fmtN(p.week)}</span>` : "—"}</td>
+        <td class="an-num an-share"><div class="an-share-bar"><div style="width:${share}%"></div></div>${share}%</td>
+      </tr>`;
+  }).join("");
+
+  analyticsRoot.innerHTML = `
+    <div class="an-kpis">
+      ${kpi("Article reads", fmtN(t.articleViews), `${fmtN(rangeReads)} in selected range · ${fmtN(today.article)} today`, "is-teal")}
+      ${kpi("Unique readers", fmtN(t.uniqueReaders), "Distinct people who read at least one article", "is-gold")}
+      ${kpi("Total site views", fmtN(t.allViews), `${fmtN(rangeViews)} in range · ${fmtN(t.uniqueVisitors)} unique visitors`)}
+      ${kpi("Writer panel visits", fmtN(t.writerVisits), `${fmtN(rangeWriter)} in range · ${fmtN(t.uniqueWriters)} unique devices`)}
+    </div>
+
+    <div class="an-card">
+      <div class="an-card-head"><h3>Daily traffic</h3><span class="an-muted">Hover points for details · UTC days</span></div>
+      ${renderTrendChart(daily)}
+    </div>
+
+    <div class="an-card">
+      <div class="an-card-head">
+        <h3>Most-read articles</h3>
+        <span class="an-muted">${fmtN(posts.length)} articles with readers · avg ${fmtN(avgPerArticle)} views/article${unread ? ` · ${unread} not yet read` : ""}</span>
+      </div>
+      ${rows ? `
+      <div class="an-table-wrap">
+        <table class="an-table">
+          <thead><tr><th>#</th><th>Article</th><th class="an-num">Views</th><th class="an-num">Unique</th><th class="an-num">Last 7d</th><th class="an-num">Share</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>` : '<div class="an-empty">No article reads recorded yet. Views will appear here as soon as readers open articles.</div>'}
+    </div>
+
+    <div class="an-grid3">
+      <div class="an-card"><div class="an-card-head"><h3>Traffic sources</h3></div>${barList(s.referrers, k => k, "No referral data yet.")}</div>
+      <div class="an-card"><div class="an-card-head"><h3>Top countries</h3></div>${barList(s.countries, countryLabel, "No location data yet.")}</div>
+      <div class="an-card"><div class="an-card-head"><h3>Devices</h3></div>${barList(s.devices, k => k, "No device data yet.")}
+        <div class="an-card-head" style="margin-top:18px"><h3>Top pages</h3></div>${barList(s.topPages, k => k, "No page views yet.")}
+      </div>
+    </div>
+
+    <p class="an-foot">Storage: <code>${esc(s.storage)}</code> · Updated ${esc(new Date(s.generatedAt).toLocaleString())} · Repeat visits to the same page within 30 minutes count once. Search-engine bots and link-preview crawlers are excluded.</p>
+  `;
+}
+
+if (refreshAnalyticsBtn) refreshAnalyticsBtn.addEventListener("click", fetchAnalytics);
+if (analyticsRange) analyticsRange.addEventListener("change", fetchAnalytics);
 
 // ─── Inquiries & Messages Manager ─────────────────────────
 async function fetchInquiriesCount() {
