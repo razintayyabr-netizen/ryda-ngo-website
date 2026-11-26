@@ -327,6 +327,38 @@ export default function ArticleClient({ post: preloadedPost }) {
   const [views, setViews] = useState(null);
   const gotViews = useRef(false);
 
+  const rawImages = post
+    ? (Array.isArray(post.images) && post.images.length > 0
+        ? post.images
+        : (post.featured_image ? [post.featured_image] : []))
+    : [];
+
+  const images = useMemo(() => rawImages.map(img => {
+    if (typeof img === 'string') return { url: img, caption: '', credit: '' };
+    return { url: img?.url || '', caption: img?.caption || '', credit: img?.credit || '' };
+  }).filter(img => img.url), [post]);
+
+  // Extract inline body images so clicking any mid-paragraph photo opens Lightbox reliably
+  const [inlineImgsList, setInlineImgsList] = useState([]);
+  const lightboxImages = useMemo(() => {
+    const merged = [...images];
+    const seen = new Set(merged.map(i => i.url));
+    inlineImgsList.forEach(item => {
+      if (item.url && !seen.has(item.url)) {
+        seen.add(item.url);
+        merged.push(item);
+      }
+    });
+    return merged;
+  }, [images, inlineImgsList]);
+
+  const sanitizedContent = useMemo(() => {
+    if (!post?.content) return '<p><em>Content not available.</em></p>';
+    return String(post.content)
+      .replace(/<div class="inline-fig-controls"[\s\S]*?<\/div>/gi, '')
+      .replace(/\scontenteditable="(?:true|false)"/gi, '');
+  }, [post]);
+
   // Live view counter — fed by the global ViewTracker (counts once per session)
   useEffect(() => {
     if (!post) return;
@@ -435,39 +467,6 @@ export default function ArticleClient({ post: preloadedPost }) {
     }
   };
 
-
-  const rawImages = post
-    ? (Array.isArray(post.images) && post.images.length > 0
-        ? post.images
-        : (post.featured_image ? [post.featured_image] : []))
-    : [];
-
-  const images = useMemo(() => rawImages.map(img => {
-    if (typeof img === 'string') return { url: img, caption: '', credit: '' };
-    return { url: img?.url || '', caption: img?.caption || '', credit: img?.credit || '' };
-  }).filter(img => img.url), [post]);
-
-  // Extract inline body images so clicking any mid-paragraph photo opens Lightbox reliably
-  const [inlineImgsList, setInlineImgsList] = useState([]);
-  const lightboxImages = useMemo(() => {
-    const merged = [...images];
-    const seen = new Set(merged.map(i => i.url));
-    inlineImgsList.forEach(item => {
-      if (item.url && !seen.has(item.url)) {
-        seen.add(item.url);
-        merged.push(item);
-      }
-    });
-    return merged;
-  }, [images, inlineImgsList]);
-
-  const sanitizedContent = useMemo(() => {
-    if (!post?.content) return '<p><em>Content not available.</em></p>';
-    return String(post.content)
-      .replace(/<div class="inline-fig-controls"[\s\S]*?<\/div>/gi, '')
-      .replace(/\scontenteditable="(?:true|false)"/gi, '');
-  }, [post]);
-
   const readTime = post ? calcReadTime((post.content || '') + (post.summary || '')) : 1;
 
   // Track reading scroll progress bar
@@ -500,7 +499,7 @@ export default function ArticleClient({ post: preloadedPost }) {
           const allRes = await fetch('/api/posts');
           if (allRes.ok) {
             const all = await allRes.json();
-            setRelatedPosts(all.filter(p => p.id !== preloadedPost.id && p.slug !== preloadedPost.slug).slice(0, 3));
+            setRelatedPosts(all.filter(p => p.id !== preloadedPost.id && p.slug !== preloadedPost.slug).slice(0, 5));
           }
         } catch {}
       }
