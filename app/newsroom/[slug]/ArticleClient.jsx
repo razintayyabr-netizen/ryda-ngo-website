@@ -346,12 +346,61 @@ export default function ArticleClient({ post: preloadedPost }) {
     return () => { window.removeEventListener('ryda:views', onViews); clearTimeout(t); };
   }, [post]);
 
-  // Typography polish for quotes & spacing inside the article body
+  // Typography polish + photo-article weaving (client-side post-mount so SSR hydrates cleanly)
+  const [wovenContent, setWovenContent] = useState(null);
   useEffect(() => {
-    if (!post) return;
+    if (!post) { setWovenContent(null); return; }
+    let html = String(post.content || '<p><em>Content not available.</em></p>')
+      .replace(/<div class="inline-fig-controls"[\s\S]*?<\/div>/gi, '')
+      .replace(/\scontenteditable="(?:true|false)"/gi, '');
+
+    const extraPhotos = images.slice(1);
+    if (extraPhotos.length > 0 && !/<img\b/i.test(html)) {
+      try {
+        const container = document.createElement('div');
+        container.innerHTML = html;
+        const blocks = Array.from(container.children).filter(el => {
+          const txt = (el.textContent || '').replace(/\u00a0/g, ' ').trim();
+          return txt.length > 0 && !/^<(br|hr)\s*\/?>$/i.test(el.innerHTML.trim());
+        });
+        if (blocks.length >= 2) {
+          const total = blocks.length;
+          const step = total / (extraPhotos.length + 1);
+          for (let i = extraPhotos.length - 1; i >= 0; i--) {
+            const photo = extraPhotos[i];
+            const targetIdx = Math.min(total - 1, Math.max(0, Math.round(step * (i + 1)) - 1));
+            const anchor = blocks[targetIdx];
+            if (!anchor || !anchor.parentNode) continue;
+            const fig = document.createElement('figure');
+            fig.className = 'article-inline-image align-center';
+            const im = document.createElement('img');
+            im.src = photo.url;
+            im.alt = photo.caption || post.title || 'Article photo';
+            im.loading = 'lazy';
+            fig.appendChild(im);
+            if (photo.caption || photo.credit) {
+              const fc = document.createElement('figcaption');
+              if (photo.caption) fc.appendChild(document.createTextNode(photo.caption));
+              if (photo.credit) {
+                if (photo.caption) fc.appendChild(document.createTextNode(' '));
+                const cr = document.createElement('span');
+                cr.className = 'photo-credit';
+                cr.textContent = photo.credit;
+                fc.appendChild(cr);
+              }
+              fig.appendChild(fc);
+            }
+            anchor.parentNode.insertBefore(fig, anchor.nextSibling);
+          }
+          html = container.innerHTML;
+        }
+      } catch {}
+    }
+
+    setWovenContent(html);
     const id = requestAnimationFrame(() => enhanceArticleBody(document.querySelector('.article-body')));
     return () => cancelAnimationFrame(id);
-  }, [post]);
+  }, [post, images]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -537,7 +586,7 @@ export default function ArticleClient({ post: preloadedPost }) {
       setInlineImgsList(discovered);
     }, 180);
     return () => clearTimeout(timer);
-  }, [post, images]);
+  }, [post, images, wovenContent]);
 
   const handlePrev = () => {
     if (activeModalIdx === null || !lightboxImages.length) return;
@@ -688,7 +737,7 @@ export default function ArticleClient({ post: preloadedPost }) {
               </figure>
             )}
 
-            <article className="article-body editorial-typography" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+            <article className="article-body editorial-typography" dangerouslySetInnerHTML={{ __html: wovenContent || sanitizedContent }} />
 
             <div className="article-clear-floats" aria-hidden="true"></div>
 

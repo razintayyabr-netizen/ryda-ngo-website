@@ -114,7 +114,10 @@ const ipmPreviewImg     = document.getElementById("ipm-preview-img");
 const ipmCaption        = document.getElementById("ipm-caption");
 const ipmCredit         = document.getElementById("ipm-credit");
 const ipmLayout         = document.getElementById("ipm-layout");
+const ipmPositionWrap   = document.getElementById("ipm-position-wrap");
+const ipmPosition       = document.getElementById("ipm-position");
 const ipmInsertBtn      = document.getElementById("ipm-insert-btn");
+const autoPlacePhotosBtn = document.getElementById("auto-place-photos-btn");
 let ipmSelectedUrl      = "";
 
 const editorWordCount   = document.getElementById("editor-word-count");
@@ -689,6 +692,116 @@ function renderIpmGallery() {
   });
 }
 
+function getEditorParagraphBlocks() {
+  if (!richEditor) return [];
+  return Array.from(richEditor.children).filter(el => {
+    if (el.matches("figure, .inline-fig-controls")) return false;
+    const txt = (el.textContent || "").replace(/\u00a0/g, " ").trim();
+    return txt.length > 0;
+  });
+}
+
+function populateIpmPositions(preferCursor = false) {
+  if (!ipmPosition) return;
+  const blocks = getEditorParagraphBlocks();
+  const hasValidCursor = !!(savedRange && richEditor && richEditor.contains(savedRange.commonAncestorContainer));
+  const opts = [];
+
+  if (hasValidCursor) {
+    opts.push(`<option value="cursor">📍 At My Cursor Position (where I clicked in text)</option>`);
+  }
+  if (blocks.length >= 2) {
+    const midIdx = Math.floor(blocks.length / 2) - 1;
+    opts.push(`<option value="after:${midIdx}">✨ Middle of Article (After Paragraph ${midIdx + 1} of ${blocks.length})</option>`);
+  }
+  blocks.forEach((b, i) => {
+    const preview = (b.textContent || "").replace(/\s+/g, " ").trim().slice(0, 56);
+    opts.push(`<option value="after:${i}">After Paragraph ${i + 1}: "${esc(preview)}${preview.length >= 56 ? "…" : ""}"</option>`);
+  });
+  opts.push(`<option value="end">At End of Article</option>`);
+
+  ipmPosition.innerHTML = opts.join("");
+  if (preferCursor && hasValidCursor) {
+    ipmPosition.value = "cursor";
+  } else if (blocks.length >= 2) {
+    ipmPosition.value = `after:${Math.floor(blocks.length / 2) - 1}`;
+  } else {
+    ipmPosition.value = "end";
+  }
+}
+
+function insertInlinePhotoAfterBlock(blockIdx, url, caption = "", credit = "", layout = "center") {
+  if (!richEditor || !url) return null;
+  const blocks = getEditorParagraphBlocks();
+  const temp = document.createElement("div");
+  temp.innerHTML = buildInlineFigureHTML(url, caption, credit, layout).trim();
+  const fig = temp.querySelector("figure");
+  const trail = temp.querySelector("p");
+  if (!fig) return null;
+
+  const anchor = blocks[blockIdx];
+  if (anchor && anchor.parentNode) {
+    anchor.parentNode.insertBefore(fig, anchor.nextSibling);
+    if (trail) anchor.parentNode.insertBefore(trail, fig.nextSibling);
+  } else {
+    richEditor.appendChild(fig);
+    if (trail) richEditor.appendChild(trail);
+  }
+
+  decorateInlineFigures();
+  syncHidden();
+  saveDraft();
+  try {
+    fig.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch {}
+  showUploadStatus("✓ Photo inserted in the middle of your article", "success");
+  return fig;
+}
+
+function autoPlaceGalleryPhotosInBody() {
+  if (!richEditor || uploadedImages.length < 2) return;
+  // Find which gallery photos (#2..#N) are not yet placed in the article body
+  const existingSrcs = new Set(
+    Array.from(richEditor.querySelectorAll("figure.article-inline-image img")).map(im => im.getAttribute("src") || "")
+  );
+  const toPlace = uploadedImages.slice(1).filter(img => img.url && !existingSrcs.has(img.url));
+  if (!toPlace.length) {
+    showUploadStatus("✓ All additional gallery photos are already placed inside the article body.", "success");
+    try { richEditor.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {}
+    return;
+  }
+
+  const blocks = getEditorParagraphBlocks();
+  if (blocks.length < 2) {
+    toPlace.forEach(img => insertInlinePhotoAfterBlock(blocks.length - 1, img.url, img.caption, img.credit, "center"));
+    return;
+  }
+
+  const total = blocks.length;
+  const step = total / (toPlace.length + 1);
+  // Insert in reverse order so earlier block anchors don't shift
+  for (let i = toPlace.length - 1; i >= 0; i--) {
+    const img = toPlace[i];
+    const targetIdx = Math.min(total - 1, Math.max(0, Math.round(step * (i + 1)) - 1));
+    const anchor = blocks[targetIdx];
+    if (!anchor || !anchor.parentNode) continue;
+    const temp = document.createElement("div");
+    temp.innerHTML = buildInlineFigureHTML(img.url, img.caption, img.credit, "center").trim();
+    const fig = temp.querySelector("figure");
+    if (fig) anchor.parentNode.insertBefore(fig, anchor.nextSibling);
+  }
+
+  decorateInlineFigures();
+  syncHidden();
+  saveDraft();
+  showUploadStatus(`✓ Placed ${toPlace.length} photo(s) evenly across the middle of your article!`, "success");
+  try { richEditor.scrollIntoView({ behavior: "smooth", block: "start" }); } catch {}
+}
+
+if (autoPlacePhotosBtn) {
+  autoPlacePhotosBtn.addEventListener("click", autoPlaceGalleryPhotosInBody);
+}
+
 function openInlinePhotoModal(opts = {}) {
   if (!ipmModal) return;
   editingFigureEl = opts.figureEl || null;
@@ -701,6 +814,7 @@ function openInlinePhotoModal(opts = {}) {
   if (ipmLayout) ipmLayout.value = opts.layout || "center";
 
   if (editingFigureEl) {
+    if (ipmPositionWrap) ipmPositionWrap.hidden = true;
     const img = editingFigureEl.querySelector("img");
     const capEl = editingFigureEl.querySelector("figcaption");
     const credEl = editingFigureEl.querySelector(".photo-credit");
@@ -721,8 +835,10 @@ function openInlinePhotoModal(opts = {}) {
     setIpmSelectedPhoto(img ? img.getAttribute("src") : "");
     switchIpmTab(uploadedImages.length ? "gallery" : "upload");
   } else {
+    if (ipmPositionWrap) ipmPositionWrap.hidden = false;
+    populateIpmPositions(opts.preferCursor !== false);
     if (ipmTitle) ipmTitle.textContent = "Insert Photo in Story";
-    if (ipmInsertBtn) ipmInsertBtn.textContent = "📷 Insert Photo at Cursor";
+    if (ipmInsertBtn) ipmInsertBtn.textContent = "📷 Insert Photo into Story";
     if (opts.url) {
       setIpmSelectedPhoto(opts.url, opts.caption || "", opts.credit || "");
       switchIpmTab("gallery");
@@ -875,10 +991,19 @@ if (ipmInsertBtn) {
         saveDraft();
         showUploadStatus("✓ Inline photo updated", "success");
       }
-    } else {
-      insertInlinePhotoIntoBody(ipmSelectedUrl, cap, cred, layout);
-    }
-    closeInlinePhotoModal();
+      } else {
+        const pos = ipmPosition?.value || "cursor";
+        if (pos === "cursor") {
+          insertInlinePhotoIntoBody(ipmSelectedUrl, cap, cred, layout);
+        } else if (pos.startsWith("after:")) {
+          const bIdx = parseInt(pos.split(":")[1], 10);
+          insertInlinePhotoAfterBlock(bIdx, ipmSelectedUrl, cap, cred, layout);
+        } else {
+          const blocks = getEditorParagraphBlocks();
+          insertInlinePhotoAfterBlock(blocks.length - 1, ipmSelectedUrl, cap, cred, layout);
+        }
+      }
+      closeInlinePhotoModal();
   });
 }
 
@@ -1003,12 +1128,14 @@ function renderGallery() {
     galleryGrid.innerHTML = '<div class="gallery-empty">No photos added yet. Drag and drop photos above.</div>';
     if (galleryCount) galleryCount.textContent = "0 photos added";
     if (featuredImgHidden) featuredImgHidden.value = "";
+    if (autoPlacePhotosBtn) autoPlacePhotosBtn.hidden = true;
     saveDraft();
     return;
   }
 
   if (galleryCount) galleryCount.textContent = `${uploadedImages.length} photo${uploadedImages.length > 1 ? "s" : ""} added`;
   if (featuredImgHidden) featuredImgHidden.value = uploadedImages[0]?.url || "";
+  if (autoPlacePhotosBtn) autoPlacePhotosBtn.hidden = uploadedImages.length < 2;
 
   uploadedImages.forEach((imgObj, idx) => {
     const item = document.createElement("div");
@@ -1070,11 +1197,7 @@ function renderGallery() {
       } else if (act === "insert-body") {
         const img = uploadedImages[idx];
         if (img) {
-          if (img.caption || img.credit) {
-            insertInlinePhotoIntoBody(img.url, img.caption, img.credit, "center");
-          } else {
-            openInlinePhotoModal({ url: img.url, caption: img.caption, credit: img.credit });
-          }
+          openInlinePhotoModal({ url: img.url, caption: img.caption, credit: img.credit, preferCursor: false });
         }
       } else if (act === "move-left" && idx > 0) {
         const temp = uploadedImages[idx];
@@ -1343,8 +1466,10 @@ function buildPreview() {
     if (galGrid) {
       galGrid.innerHTML = uploadedImages.map(item => `
         <div class="preview-gallery-item">
-          <img src="${esc(item.url)}" alt="Gallery photo">
-          ${item.caption ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.7);padding:4px;">${esc(item.caption)}</div>` : ''}
+          <div class="preview-gallery-thumb">
+            <img src="${esc(item.url)}" alt="${esc(item.caption || 'Gallery photo')}">
+          </div>
+          ${item.caption ? `<div class="preview-gallery-cap">${esc(item.caption)}</div>` : ''}
         </div>
       `).join("");
     }

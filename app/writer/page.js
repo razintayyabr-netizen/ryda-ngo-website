@@ -263,8 +263,13 @@ const rawHTML = `
               <!-- Multi-photo gallery manager -->
               <div class="gallery-manager" id="gallery-manager">
                 <div class="gallery-manager-header">
-                  <span class="gallery-count" id="gallery-count">0 photos added</span>
-                  <span class="field-hint">First photo is Main Cover. Use <strong>"📷 Insert in Body"</strong> to place any photo inside your text.</span>
+                  <div>
+                    <span class="gallery-count" id="gallery-count">0 photos added</span>
+                    <span class="field-hint" style="display:block;margin-top:2px;">First photo is Main Cover. Use <strong>"📷 Insert in Body"</strong> on any photo or click <strong>"✨ Place All in Middle of Article"</strong>.</span>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" id="auto-place-photos-btn" title="Automatically insert all additional gallery photos evenly between paragraphs of your story" hidden>
+                    ✨ Place All Photos Evenly in Article
+                  </button>
                 </div>
                 <div class="gallery-grid" id="gallery-grid">
                   <div class="gallery-empty" id="gallery-empty">No photos added yet. Upload or paste URLs above.</div>
@@ -541,8 +546,12 @@ const rawHTML = `
           <img id="ipm-preview-img" src="" alt="Selected photo preview">
         </div>
 
-        <!-- Caption, Credit & Layout -->
+        <!-- Caption, Credit, Position & Layout -->
         <div class="ipm-fields">
+          <div class="ipm-field" id="ipm-position-wrap">
+            <label for="ipm-position">Where to Place This Photo in Story</label>
+            <select id="ipm-position"></select>
+          </div>
           <div class="ipm-field">
             <label for="ipm-caption">Photo Caption</label>
             <input type="text" id="ipm-caption" placeholder="Describe what is shown in this photo (displayed underneath)...">
