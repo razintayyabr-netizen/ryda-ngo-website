@@ -356,17 +356,21 @@ function insertHTMLAtCursor(html, splitCurrentBlock = false) {
     if (topBlock && /^(P|DIV|H2|H3|H4)$/i.test(topBlock.tagName) && !topBlock.closest("blockquote, .testimony-card, figure")) {
       range.deleteContents();
 
-      // Extract before-cursor content inside topBlock
-      const beforeRange = document.createRange();
-      beforeRange.setStart(topBlock, 0);
-      beforeRange.setEnd(range.startContainer, range.startOffset);
-      const beforeFrag = beforeRange.extractContents();
-
-      // Extract after-cursor content inside topBlock
+      // Extract AFTER-cursor content FIRST so startContainer/startOffset on the left stay valid!
       const afterRange = document.createRange();
       afterRange.setStart(range.startContainer, range.startOffset);
       afterRange.setEnd(topBlock, topBlock.childNodes.length);
       const afterFrag = afterRange.extractContents();
+
+      // Now extract BEFORE-cursor content safely
+      const beforeRange = document.createRange();
+      beforeRange.setStart(topBlock, 0);
+      const safeEndNode = richEditor.contains(range.startContainer) ? range.startContainer : topBlock;
+      const safeEndOffset = safeEndNode === topBlock
+        ? topBlock.childNodes.length
+        : Math.min(range.startOffset, safeEndNode.nodeType === 3 ? safeEndNode.length : safeEndNode.childNodes.length);
+      beforeRange.setEnd(safeEndNode, safeEndOffset);
+      const beforeFrag = beforeRange.extractContents();
 
       const beforeEl = document.createElement(topBlock.tagName === "DIV" ? "p" : topBlock.tagName.toLowerCase());
       beforeEl.appendChild(beforeFrag);
@@ -374,21 +378,25 @@ function insertHTMLAtCursor(html, splitCurrentBlock = false) {
       const afterEl = document.createElement("p");
       afterEl.appendChild(afterFrag);
 
+      const afterHasContent = hasMeaningfulContent(afterEl);
+      const filteredNodes = afterHasContent
+        ? nodesToInsert.filter((n, i) => !(i === nodesToInsert.length - 1 && n.tagName === "P" && !hasMeaningfulContent(n)))
+        : nodesToInsert;
+
       const parent = topBlock.parentNode;
       if (hasMeaningfulContent(beforeEl)) {
         parent.insertBefore(beforeEl, topBlock);
       }
 
       let lastInserted = null;
-      nodesToInsert.forEach(n => {
+      filteredNodes.forEach(n => {
         lastInserted = parent.insertBefore(n, topBlock);
       });
 
       let focusTarget = null;
-      if (hasMeaningfulContent(afterEl)) {
+      if (afterHasContent) {
         focusTarget = parent.insertBefore(afterEl, topBlock);
       } else {
-        // Check if lastInserted already is an empty <p>; if not, append a fresh <p>
         if (lastInserted && lastInserted.tagName === "P" && !hasMeaningfulContent(lastInserted)) {
           focusTarget = lastInserted;
         } else {
