@@ -141,7 +141,7 @@ export default function AboutPage() {
                 <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 15V5M10 5L6.5 8.5M10 5L13.5 8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Donate Now
               </Link>
-              <Link className="is-btn-secondary" href="/#contact">Contact Us</Link>
+              <Link className="btn btn-outline" href="/#contact">Contact Us</Link>
             </div>
           </div>
         </section>

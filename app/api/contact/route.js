@@ -7,12 +7,13 @@ let redisPromise = null;
 
 async function getRedis() {
   if (redis && redis.isOpen) return redis;
-  if (!process.env.REDIS_URL) return null;
+  const url = process.env.REDIS_URL || process.env.KV_URL;
+  if (!url) return null;
 
   if (!redisPromise) {
     redisPromise = (async () => {
       try {
-        redis = createClient({ url: process.env.REDIS_URL });
+        redis = createClient({ url });
         redis.on('error', (err) => console.error('Redis client error:', err));
         await redis.connect();
         return redis;
@@ -205,5 +206,36 @@ export async function GET(request) {
   } catch (error) {
     console.error('Failed to fetch contact messages:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
+  }
+}
+
+// DELETE /api/contact?id=... - Delete an inquiry message
+export async function DELETE(request) {
+  try {
+    const token = request.headers.get('x-writer-token');
+    if (!isValidWriterToken(token)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid writer access token' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
+    }
+
+    const r = await getRedis();
+    if (r) {
+      const raw = await r.get(MESSAGES_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      const filtered = list.filter(m => m.id !== id);
+      await r.set(MESSAGES_KEY, JSON.stringify(filtered));
+    } else {
+      inMemoryMessages = inMemoryMessages.filter(m => m.id !== id);
+    }
+
+    return NextResponse.json({ success: true, id });
+  } catch (error) {
+    console.error('Failed to delete contact message:', error);
+    return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
   }
 }

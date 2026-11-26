@@ -19,6 +19,8 @@ let currentPanel = "new-post";
 let isEditorPreview = false;
 let uploadedImages = []; // [{ url: string, caption: string, credit: string }]
 let editingPostId = null;
+let savedRange = null;
+let editingFigureEl = null; // If editing an existing inline <figure> in the modal
 
 // ─── Helper ───────────────────────────────────────────────
 function normalizeImageObj(item) {
@@ -86,6 +88,44 @@ const uploadStatus      = document.getElementById("upload-status");
 
 const galleryGrid       = document.getElementById("gallery-grid");
 const galleryCount      = document.getElementById("gallery-count");
+
+const sidebarEl         = document.querySelector(".sidebar");
+const mobileSidebarBtn  = document.getElementById("mobile-sidebar-btn");
+const sidebarBackdrop   = document.getElementById("sidebar-backdrop");
+
+// Inline Photo Modal refs
+const ipmModal          = document.getElementById("inline-photo-modal");
+const ipmTitle          = document.getElementById("ipm-title");
+const ipmClose          = document.getElementById("ipm-close");
+const ipmCancel         = document.getElementById("ipm-cancel");
+const ipmTabs           = document.querySelectorAll("[data-ipm-tab]");
+const ipmPaneUpload     = document.getElementById("ipm-pane-upload");
+const ipmPaneGallery    = document.getElementById("ipm-pane-gallery");
+const ipmPaneUrl        = document.getElementById("ipm-pane-url");
+const ipmDropzone       = document.getElementById("ipm-dropzone");
+const ipmFileInput      = document.getElementById("ipm-file-input");
+const ipmUploadStatus   = document.getElementById("ipm-upload-status");
+const ipmGalGrid        = document.getElementById("ipm-gallery-grid");
+const ipmGalCount       = document.getElementById("ipm-gal-count");
+const ipmUrlInput       = document.getElementById("ipm-url-input");
+const ipmUrlLoad        = document.getElementById("ipm-url-load");
+const ipmPreviewBox     = document.getElementById("ipm-preview-box");
+const ipmPreviewImg     = document.getElementById("ipm-preview-img");
+const ipmCaption        = document.getElementById("ipm-caption");
+const ipmCredit         = document.getElementById("ipm-credit");
+const ipmLayout         = document.getElementById("ipm-layout");
+const ipmInsertBtn      = document.getElementById("ipm-insert-btn");
+let ipmSelectedUrl      = "";
+
+const editorWordCount   = document.getElementById("editor-word-count");
+const editorSaveStatus  = document.getElementById("editor-save-status");
+const postsCatFilter    = document.getElementById("posts-cat-filter");
+const postsSummaryBar   = document.getElementById("posts-summary-bar");
+const newPostQuickBtn   = document.getElementById("new-post-quick-btn");
+const adminHealthStatus = document.getElementById("admin-health-status");
+const refreshHealthBtn  = document.getElementById("refresh-health-btn");
+const exportPostsBtn    = document.getElementById("export-posts-btn");
+const exportInqBtn      = document.getElementById("export-inquiries-btn");
 
 // ─── Auth ─────────────────────────────────────────────────
 function showDashboard() {
@@ -199,11 +239,83 @@ function switchPanel(name) {
   if (name === "all-posts") fetchPosts();
   if (name === "inquiries") fetchInquiries();
   if (name === "analytics") fetchAnalytics();
+  if (name === "admin-tools") refreshAdminHealth();
 }
 
 sbLinks.forEach(l => {
-  l.addEventListener("click", () => switchPanel(l.dataset.panel));
+  l.addEventListener("click", () => {
+    switchPanel(l.dataset.panel);
+    if (sidebarEl) sidebarEl.classList.remove("is-open");
+    if (sidebarBackdrop) sidebarBackdrop.hidden = true;
+  });
 });
+
+if (mobileSidebarBtn && sidebarEl) {
+  mobileSidebarBtn.addEventListener("click", () => {
+    const open = sidebarEl.classList.toggle("is-open");
+    if (sidebarBackdrop) sidebarBackdrop.hidden = !open;
+  });
+}
+if (sidebarBackdrop && sidebarEl) {
+  sidebarBackdrop.addEventListener("click", () => {
+    sidebarEl.classList.remove("is-open");
+    sidebarBackdrop.hidden = true;
+  });
+}
+
+// ─── Selection & Clean HTML Helpers ───────────────────────
+function saveEditorSelection() {
+  if (!richEditor) return;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (!richEditor.contains(range.commonAncestorContainer)) return;
+  const ancEl = range.commonAncestorContainer.nodeType === 1
+    ? range.commonAncestorContainer
+    : range.commonAncestorContainer.parentElement;
+  if (ancEl && ancEl.closest && ancEl.closest(".inline-fig-controls, figure[contenteditable='false']")) return;
+  savedRange = range.cloneRange();
+}
+
+function getCleanEditorHTML() {
+  if (!richEditor) return "";
+  const clone = richEditor.cloneNode(true);
+  clone.querySelectorAll(".inline-fig-controls").forEach(el => el.remove());
+  clone.querySelectorAll("figure[contenteditable]").forEach(el => el.removeAttribute("contenteditable"));
+  return clone.innerHTML;
+}
+
+function createEmptyParagraph() {
+  const p = document.createElement("p");
+  p.appendChild(document.createElement("br"));
+  return p;
+}
+
+function placeCaretAtStart(el) {
+  if (!el) return;
+  richEditor.focus();
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.setStart(el, 0);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  savedRange = range.cloneRange();
+}
+
+function getTopLevelEditorBlock(node) {
+  let cur = node && node.nodeType === 1 ? node : node?.parentElement;
+  while (cur && cur !== richEditor && cur.parentElement !== richEditor) {
+    cur = cur.parentElement;
+  }
+  return cur && cur !== richEditor ? cur : null;
+}
+
+function hasMeaningfulContent(node) {
+  if (!node) return false;
+  if (node.querySelector && node.querySelector("img, figure, blockquote, hr")) return true;
+  return (node.textContent || "").replace(/\u00a0/g, " ").trim().length > 0;
+}
 
 // ─── Toolbar / Rich Editor Commands ───────────────────────
 const toolBtns = document.querySelectorAll(".tool-btn");
@@ -211,36 +323,203 @@ const toolBtns = document.querySelectorAll(".tool-btn");
 toolBtns.forEach(btn => {
   btn.addEventListener("mousedown", e => {
     e.preventDefault();
+    saveEditorSelection();
     execFormat(btn.dataset.cmd);
   });
 });
 
-function insertHTMLAtCursor(html) {
+function insertHTMLAtCursor(html, splitCurrentBlock = false) {
   if (!richEditor) return;
-  richEditor.focus();
+
+  // Build fragment from html
+  const temp = document.createElement("div");
+  temp.innerHTML = html.trim();
+  const nodesToInsert = Array.from(temp.childNodes);
+  if (!nodesToInsert.length) return;
+
+  // Restore saved range if current selection isn't inside richEditor
   const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    const el = document.createElement("div");
-    el.innerHTML = html;
-    const frag = document.createDocumentFragment();
-    let node, lastNode;
-    while ((node = el.firstChild)) {
-      lastNode = frag.appendChild(node);
-    }
-    range.insertNode(frag);
-    if (lastNode) {
-      range.setStartAfter(lastNode);
-      range.collapse(true);
+  let range = null;
+  if (sel && sel.rangeCount > 0 && richEditor.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+    range = sel.getRangeAt(0);
+  } else if (savedRange && richEditor.contains(savedRange.commonAncestorContainer)) {
+    range = savedRange.cloneRange();
+    if (sel) {
       sel.removeAllRanges();
       sel.addRange(range);
     }
-  } else {
-    richEditor.innerHTML += html;
   }
+
+  // If splitting a paragraph/div block (e.g. inserting a photo or quote mid-paragraph)
+  if (splitCurrentBlock && range) {
+    const topBlock = getTopLevelEditorBlock(range.startContainer);
+    if (topBlock && /^(P|DIV|H2|H3|H4)$/i.test(topBlock.tagName) && !topBlock.closest("blockquote, .testimony-card, figure")) {
+      range.deleteContents();
+
+      // Extract before-cursor content inside topBlock
+      const beforeRange = document.createRange();
+      beforeRange.setStart(topBlock, 0);
+      beforeRange.setEnd(range.startContainer, range.startOffset);
+      const beforeFrag = beforeRange.extractContents();
+
+      // Extract after-cursor content inside topBlock
+      const afterRange = document.createRange();
+      afterRange.setStart(range.startContainer, range.startOffset);
+      afterRange.setEnd(topBlock, topBlock.childNodes.length);
+      const afterFrag = afterRange.extractContents();
+
+      const beforeEl = document.createElement(topBlock.tagName === "DIV" ? "p" : topBlock.tagName.toLowerCase());
+      beforeEl.appendChild(beforeFrag);
+
+      const afterEl = document.createElement("p");
+      afterEl.appendChild(afterFrag);
+
+      const parent = topBlock.parentNode;
+      if (hasMeaningfulContent(beforeEl)) {
+        parent.insertBefore(beforeEl, topBlock);
+      }
+
+      let lastInserted = null;
+      nodesToInsert.forEach(n => {
+        lastInserted = parent.insertBefore(n, topBlock);
+      });
+
+      let focusTarget = null;
+      if (hasMeaningfulContent(afterEl)) {
+        focusTarget = parent.insertBefore(afterEl, topBlock);
+      } else {
+        // Check if lastInserted already is an empty <p>; if not, append a fresh <p>
+        if (lastInserted && lastInserted.tagName === "P" && !hasMeaningfulContent(lastInserted)) {
+          focusTarget = lastInserted;
+        } else {
+          focusTarget = parent.insertBefore(createEmptyParagraph(), topBlock);
+        }
+      }
+
+      parent.removeChild(topBlock);
+      decorateInlineFigures();
+      placeCaretAtStart(focusTarget);
+      syncHidden();
+      saveDraft();
+      return;
+    }
+  }
+
+  // Standard insertion at range or end of editor
+  richEditor.focus();
+  if (range) {
+    range.deleteContents();
+    const frag = document.createDocumentFragment();
+    let lastNode = null;
+    nodesToInsert.forEach(n => {
+      lastNode = frag.appendChild(n);
+    });
+    range.insertNode(frag);
+    if (lastNode) {
+      if (lastNode.tagName === "P") {
+        placeCaretAtStart(lastNode);
+      } else {
+        range.setStartAfter(lastNode);
+        range.collapse(true);
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        savedRange = range.cloneRange();
+      }
+    }
+  } else {
+    let lastNode = null;
+    nodesToInsert.forEach(n => {
+      lastNode = richEditor.appendChild(n);
+    });
+    if (splitCurrentBlock && (!lastNode || lastNode.tagName !== "P")) {
+      lastNode = richEditor.appendChild(createEmptyParagraph());
+    }
+    if (lastNode) placeCaretAtStart(lastNode);
+  }
+
+  decorateInlineFigures();
   syncHidden();
   saveDraft();
+}
+
+function buildInlineFigureHTML(url, caption = "", credit = "", layout = "center") {
+  const alignClass = ["center", "wide", "left", "right"].includes(layout) ? `align-${layout}` : "align-center";
+  const capText = (caption || "").trim();
+  const credText = (credit || "").trim();
+  const figcaptionHTML = (capText || credText)
+    ? `<figcaption>${esc(capText)}${capText && credText ? ' ' : ''}${credText ? `<span class="photo-credit">${esc(credText)}</span>` : ''}</figcaption>`
+    : "";
+  return `<figure class="article-inline-image ${alignClass}" contenteditable="false"><img src="${esc(url)}" alt="${esc(capText || "Article photo")}" loading="lazy" />${figcaptionHTML}</figure><p><br></p>`;
+}
+
+function decorateInlineFigures() {
+  if (!richEditor) return;
+  richEditor.querySelectorAll("figure.article-inline-image").forEach(fig => {
+    fig.setAttribute("contenteditable", "false");
+    if (fig.querySelector(".inline-fig-controls")) return;
+
+    const bar = document.createElement("div");
+    bar.className = "inline-fig-controls";
+    bar.setAttribute("contenteditable", "false");
+    bar.innerHTML = `
+      <button type="button" class="ifc-btn ifc-edit" title="Edit caption, credit or alignment">✏️ Edit Caption &amp; Size</button>
+      <button type="button" class="ifc-btn ifc-up" title="Move photo up">↑</button>
+      <button type="button" class="ifc-btn ifc-down" title="Move photo down">↓</button>
+      <button type="button" class="ifc-btn ifc-para" title="Add paragraph below">↵ Text Below</button>
+      <button type="button" class="ifc-btn ifc-del" title="Remove photo from body">✕</button>
+    `;
+
+    bar.querySelector(".ifc-edit").addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      openInlinePhotoModal({ figureEl: fig });
+    });
+
+    bar.querySelector(".ifc-up").addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const prev = fig.previousElementSibling;
+      if (prev && fig.parentNode) {
+        fig.parentNode.insertBefore(fig, prev);
+        syncHidden();
+        saveDraft();
+      }
+    });
+
+    bar.querySelector(".ifc-down").addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = fig.nextElementSibling;
+      if (next && fig.parentNode) {
+        fig.parentNode.insertBefore(next, fig);
+        syncHidden();
+        saveDraft();
+      }
+    });
+
+    bar.querySelector(".ifc-para").addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const p = createEmptyParagraph();
+      if (fig.nextSibling) fig.parentNode.insertBefore(p, fig.nextSibling);
+      else fig.parentNode.appendChild(p);
+      placeCaretAtStart(p);
+      syncHidden();
+      saveDraft();
+    });
+
+    bar.querySelector(".ifc-del").addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      fig.remove();
+      syncHidden();
+      saveDraft();
+    });
+
+    fig.insertBefore(bar, fig.firstChild);
+  });
 }
 
 function execFormat(cmd) {
@@ -248,6 +527,12 @@ function execFormat(cmd) {
   richEditor.focus();
 
   switch (cmd) {
+    case "undo":
+      document.execCommand("undo");
+      break;
+    case "redo":
+      document.execCommand("redo");
+      break;
     case "bold":
       document.execCommand("bold");
       break;
@@ -256,6 +541,23 @@ function execFormat(cmd) {
       break;
     case "underline":
       document.execCommand("underline");
+      break;
+    case "link": {
+      const sel = window.getSelection();
+      const hasSel = sel && sel.rangeCount > 0 && richEditor.contains(sel.anchorNode) && sel.toString().trim().length > 0;
+      const url = prompt("Enter URL (https://...):", "https://");
+      if (url && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/"))) {
+        if (hasSel) {
+          document.execCommand("createLink", false, url);
+        } else {
+          const text = prompt("Enter link text:", url) || url;
+          insertHTMLAtCursor(`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a> `, false);
+        }
+      }
+      break;
+    }
+    case "hr":
+      insertHTMLAtCursor(`<hr /><p><br></p>`, true);
       break;
     case "h2":
       wrapBlock("H2");
@@ -279,7 +581,7 @@ function execFormat(cmd) {
           <cite>— Speaker Name, Context / Camp Location</cite>
         </blockquote>
         <p><br></p>
-      `);
+      `, true);
       break;
     }
     case "pullquote": {
@@ -291,7 +593,7 @@ function execFormat(cmd) {
           "${esc(quoteText)}"
         </blockquote>
         <p><br></p>
-      `);
+      `, true);
       break;
     }
     case "testimony": {
@@ -307,21 +609,11 @@ function execFormat(cmd) {
           </div>
         </div>
         <p><br></p>
-      `);
+      `, true);
       break;
     }
     case "insertInlinePhoto":
-      if (uploadedImages.length > 0) {
-        const first = uploadedImages[0];
-        insertInlinePhotoIntoBody(first.url, first.caption, first.credit);
-      } else {
-        const url = prompt("Enter photo URL to insert in body (or upload photos first below):");
-        if (url) {
-          const cap = prompt("Enter photo caption (optional):") || "";
-          const cred = prompt("Enter photographer credit (e.g. Photo by Ro Harez Khan):") || "";
-          insertInlinePhotoIntoBody(url, cap, cred);
-        }
-      }
+      openInlinePhotoModal();
       break;
     case "clear":
       document.execCommand("removeFormat");
@@ -331,17 +623,255 @@ function execFormat(cmd) {
   updateToolbarState();
 }
 
-function insertInlinePhotoIntoBody(url, caption = "", credit = "") {
+function insertInlinePhotoIntoBody(url, caption = "", credit = "", layout = "center") {
   if (!url) return;
-  const figHtml = `
-    <figure class="article-inline-image">
-      <img src="${esc(url)}" alt="${esc(caption || 'Article photo')}" loading="lazy" />
-      ${(caption || credit) ? `<figcaption>${esc(caption)} ${credit ? `<span class="photo-credit">${esc(credit)}</span>` : ''}</figcaption>` : ''}
-    </figure>
-    <p><br></p>
-  `;
-  insertHTMLAtCursor(figHtml);
-  showUploadStatus("✓ Photo inserted into story body at cursor", "success");
+  const figHtml = buildInlineFigureHTML(url, caption, credit, layout);
+  insertHTMLAtCursor(figHtml, true);
+  showUploadStatus("✓ Photo inserted cleanly into story body", "success");
+}
+
+// ─── Inline Photo Modal Logic ─────────────────────────────
+function switchIpmTab(tabName) {
+  ipmTabs.forEach(t => t.classList.toggle("is-active", t.dataset.ipmTab === tabName));
+  if (ipmPaneUpload) { ipmPaneUpload.hidden = tabName !== "upload"; ipmPaneUpload.classList.toggle("is-active", tabName === "upload"); }
+  if (ipmPaneGallery) { ipmPaneGallery.hidden = tabName !== "gallery"; ipmPaneGallery.classList.toggle("is-active", tabName === "gallery"); }
+  if (ipmPaneUrl) { ipmPaneUrl.hidden = tabName !== "url"; ipmPaneUrl.classList.toggle("is-active", tabName === "url"); }
+}
+
+function setIpmSelectedPhoto(url, caption = "", credit = "") {
+  ipmSelectedUrl = url || "";
+  if (ipmPreviewImg && ipmPreviewBox) {
+    if (ipmSelectedUrl) {
+      ipmPreviewImg.src = ipmSelectedUrl;
+      ipmPreviewBox.hidden = false;
+    } else {
+      ipmPreviewImg.src = "";
+      ipmPreviewBox.hidden = true;
+    }
+  }
+  if (caption && ipmCaption && !ipmCaption.value) ipmCaption.value = caption;
+  if (credit && ipmCredit && !ipmCredit.value) ipmCredit.value = credit;
+  if (ipmInsertBtn) ipmInsertBtn.disabled = !ipmSelectedUrl;
+  renderIpmGallery();
+}
+
+function renderIpmGallery() {
+  if (!ipmGalGrid) return;
+  if (ipmGalCount) ipmGalCount.textContent = String(uploadedImages.length);
+  if (!uploadedImages.length) {
+    ipmGalGrid.innerHTML = '<div class="ipm-gallery-empty">No photos uploaded to this post yet. Use "Upload New Photo" or "Image URL".</div>';
+    return;
+  }
+  ipmGalGrid.innerHTML = uploadedImages.map((imgObj, i) => `
+    <button type="button" class="ipm-gal-item${imgObj.url === ipmSelectedUrl ? " is-selected" : ""}" data-ipm-gal-idx="${i}">
+      <img src="${esc(imgObj.url)}" alt="${esc(imgObj.caption || `Photo ${i + 1}`)}">
+      ${i === 0 ? '<span class="ipm-gal-badge">Cover</span>' : ''}
+    </button>
+  `).join("");
+
+  ipmGalGrid.querySelectorAll("[data-ipm-gal-idx]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.ipmGalIdx, 10);
+      const item = uploadedImages[idx];
+      if (!item) return;
+      if (ipmCaption) ipmCaption.value = item.caption || "";
+      if (ipmCredit) ipmCredit.value = item.credit || "";
+      setIpmSelectedPhoto(item.url);
+    });
+  });
+}
+
+function openInlinePhotoModal(opts = {}) {
+  if (!ipmModal) return;
+  editingFigureEl = opts.figureEl || null;
+  ipmSelectedUrl = "";
+
+  if (ipmUploadStatus) { ipmUploadStatus.hidden = true; ipmUploadStatus.textContent = ""; }
+  if (ipmUrlInput) ipmUrlInput.value = "";
+  if (ipmCaption) ipmCaption.value = opts.caption || "";
+  if (ipmCredit) ipmCredit.value = opts.credit || "";
+  if (ipmLayout) ipmLayout.value = opts.layout || "center";
+
+  if (editingFigureEl) {
+    const img = editingFigureEl.querySelector("img");
+    const capEl = editingFigureEl.querySelector("figcaption");
+    const credEl = editingFigureEl.querySelector(".photo-credit");
+    const creditText = credEl ? credEl.textContent.trim() : "";
+    let captionText = "";
+    if (capEl) {
+      const cloneCap = capEl.cloneNode(true);
+      cloneCap.querySelectorAll(".photo-credit").forEach(el => el.remove());
+      captionText = cloneCap.textContent.trim();
+    }
+    const cls = editingFigureEl.className || "";
+    const alignMatch = cls.match(/align-(center|wide|left|right)/);
+    if (ipmTitle) ipmTitle.textContent = "Edit Inline Story Photo";
+    if (ipmInsertBtn) ipmInsertBtn.textContent = "✓ Save Photo Changes";
+    if (ipmCaption) ipmCaption.value = captionText;
+    if (ipmCredit) ipmCredit.value = creditText;
+    if (ipmLayout) ipmLayout.value = alignMatch ? alignMatch[1] : "center";
+    setIpmSelectedPhoto(img ? img.getAttribute("src") : "");
+    switchIpmTab(uploadedImages.length ? "gallery" : "upload");
+  } else {
+    if (ipmTitle) ipmTitle.textContent = "Insert Photo in Story";
+    if (ipmInsertBtn) ipmInsertBtn.textContent = "📷 Insert Photo at Cursor";
+    if (opts.url) {
+      setIpmSelectedPhoto(opts.url, opts.caption || "", opts.credit || "");
+      switchIpmTab("gallery");
+    } else {
+      setIpmSelectedPhoto("");
+      switchIpmTab("upload");
+    }
+  }
+
+  renderIpmGallery();
+  ipmModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeInlinePhotoModal() {
+  if (!ipmModal) return;
+  ipmModal.hidden = true;
+  document.body.style.overflow = "";
+  editingFigureEl = null;
+}
+
+if (ipmClose) ipmClose.addEventListener("click", closeInlinePhotoModal);
+if (ipmCancel) ipmCancel.addEventListener("click", closeInlinePhotoModal);
+if (ipmModal) {
+  ipmModal.addEventListener("click", e => {
+    if (e.target === ipmModal) closeInlinePhotoModal();
+  });
+}
+ipmTabs.forEach(tab => {
+  tab.addEventListener("click", () => switchIpmTab(tab.dataset.ipmTab));
+});
+
+async function uploadSingleInlineFile(file) {
+  if (!file) return null;
+  if (file.size > 6 * 1024 * 1024) {
+    throw new Error(`File "${file.name}" is over the 6MB limit`);
+  }
+  if (!file.type.match(/^image\/(jpeg|png|webp|gif|avif)$/)) {
+    throw new Error(`File "${file.name}" is not a supported image format`);
+  }
+  const formData = new FormData();
+  formData.append("files", file);
+  formData.append("token", writerToken);
+
+  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
+  const url = (data.urls && data.urls[0]) || data.url;
+  if (url) {
+    uploadedImages.push({ url, caption: "", credit: "" });
+    renderGallery();
+  }
+  return url;
+}
+
+if (ipmFileInput) {
+  ipmFileInput.addEventListener("change", async () => {
+    const file = ipmFileInput.files && ipmFileInput.files[0];
+    ipmFileInput.value = "";
+    if (!file) return;
+    if (ipmUploadStatus) {
+      ipmUploadStatus.hidden = false;
+      ipmUploadStatus.className = "ipm-status is-loading";
+      ipmUploadStatus.textContent = `↑ Uploading "${file.name}"...`;
+    }
+    try {
+      const url = await uploadSingleInlineFile(file);
+      if (ipmUploadStatus) {
+        ipmUploadStatus.className = "ipm-status success";
+        ipmUploadStatus.textContent = "✓ Photo uploaded! Add a caption below and click Insert.";
+      }
+      setIpmSelectedPhoto(url);
+    } catch (err) {
+      if (ipmUploadStatus) {
+        ipmUploadStatus.className = "ipm-status error";
+        ipmUploadStatus.textContent = "✗ " + (err.message || "Upload failed");
+      }
+    }
+  });
+}
+
+if (ipmDropzone) {
+  ipmDropzone.addEventListener("dragover", e => { e.preventDefault(); ipmDropzone.classList.add("is-dragover"); });
+  ipmDropzone.addEventListener("dragleave", () => ipmDropzone.classList.remove("is-dragover"));
+  ipmDropzone.addEventListener("drop", async e => {
+    e.preventDefault();
+    ipmDropzone.classList.remove("is-dragover");
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    if (ipmUploadStatus) {
+      ipmUploadStatus.hidden = false;
+      ipmUploadStatus.className = "ipm-status is-loading";
+      ipmUploadStatus.textContent = `↑ Uploading "${file.name}"...`;
+    }
+    try {
+      const url = await uploadSingleInlineFile(file);
+      if (ipmUploadStatus) {
+        ipmUploadStatus.className = "ipm-status success";
+        ipmUploadStatus.textContent = "✓ Photo uploaded! Add a caption below and click Insert.";
+      }
+      setIpmSelectedPhoto(url);
+    } catch (err) {
+      if (ipmUploadStatus) {
+        ipmUploadStatus.className = "ipm-status error";
+        ipmUploadStatus.textContent = "✗ " + (err.message || "Upload failed");
+      }
+    }
+  });
+}
+
+if (ipmUrlLoad && ipmUrlInput) {
+  ipmUrlLoad.addEventListener("click", () => {
+    const u = ipmUrlInput.value.trim();
+    if (!u) return;
+    if (!u.startsWith("http://") && !u.startsWith("https://") && !u.startsWith("/api/")) {
+      alert("Please enter a valid HTTP, HTTPS, or /api/ image URL.");
+      return;
+    }
+    if (!uploadedImages.some(x => x.url === u)) {
+      uploadedImages.push({ url: u, caption: "", credit: "" });
+      renderGallery();
+    }
+    setIpmSelectedPhoto(u);
+  });
+}
+
+if (ipmInsertBtn) {
+  ipmInsertBtn.addEventListener("click", () => {
+    if (!ipmSelectedUrl) return;
+    const cap = (ipmCaption?.value || "").trim();
+    const cred = (ipmCredit?.value || "").trim();
+    const layout = ipmLayout?.value || "center";
+
+    // Sync caption/credit back to gallery entry if present
+    const matchGal = uploadedImages.find(x => x.url === ipmSelectedUrl);
+    if (matchGal) {
+      if (cap && !matchGal.caption) matchGal.caption = cap;
+      if (cred && !matchGal.credit) matchGal.credit = cred;
+      renderGallery();
+    }
+
+    if (editingFigureEl) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = buildInlineFigureHTML(ipmSelectedUrl, cap, cred, layout);
+      const newFig = tmp.querySelector("figure");
+      if (newFig && editingFigureEl.parentNode) {
+        editingFigureEl.parentNode.replaceChild(newFig, editingFigureEl);
+        decorateInlineFigures();
+        syncHidden();
+        saveDraft();
+        showUploadStatus("✓ Inline photo updated", "success");
+      }
+    } else {
+      insertInlinePhotoIntoBody(ipmSelectedUrl, cap, cred, layout);
+    }
+    closeInlinePhotoModal();
+  });
 }
 
 function wrapBlock(tag) {
@@ -355,7 +885,7 @@ function wrapBlock(tag) {
 }
 
 function syncHidden() {
-  if (contentHidden && richEditor) contentHidden.value = richEditor.innerHTML;
+  if (contentHidden && richEditor) contentHidden.value = getCleanEditorHTML();
 }
 
 function updateToolbarState() {
@@ -368,13 +898,72 @@ function updateToolbarState() {
 }
 
 if (richEditor) {
-  richEditor.addEventListener("input", () => { syncHidden(); saveDraft(); });
-  richEditor.addEventListener("keyup", updateToolbarState);
-  richEditor.addEventListener("mouseup", updateToolbarState);
+  richEditor.addEventListener("input", () => { saveEditorSelection(); syncHidden(); saveDraft(); });
+  richEditor.addEventListener("keyup", () => { saveEditorSelection(); updateToolbarState(); });
+  richEditor.addEventListener("mouseup", () => { saveEditorSelection(); updateToolbarState(); });
+  richEditor.addEventListener("focus", saveEditorSelection);
+  richEditor.addEventListener("blur", saveEditorSelection);
   richEditor.addEventListener("keydown", e => {
     if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "    "); }
   });
+
+  // Direct image paste inside rich editor
+  richEditor.addEventListener("paste", async e => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imgItem = items.find(it => it.type && it.type.startsWith("image/"));
+    if (!imgItem) return;
+    e.preventDefault();
+    saveEditorSelection();
+    const file = imgItem.getAsFile();
+    if (!file) return;
+    showUploadStatus("↑ Uploading pasted photo...", "loading");
+    try {
+      const url = await uploadSingleInlineFile(file);
+      if (url) {
+        insertInlinePhotoIntoBody(url, "", "");
+        showUploadStatus("✓ Pasted photo inserted at cursor! Click '✏️ Edit Caption & Size' to add a caption.", "success");
+      }
+    } catch (err) {
+      showUploadStatus("✗ " + (err.message || "Paste upload failed"), "error");
+    }
+  });
+
+  // Direct image drag-and-drop inside rich editor at drop point
+  richEditor.addEventListener("dragover", e => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
+      e.preventDefault();
+      richEditor.classList.add("is-drop-target");
+    }
+  });
+  richEditor.addEventListener("dragleave", () => richEditor.classList.remove("is-drop-target"));
+  richEditor.addEventListener("drop", async e => {
+    richEditor.classList.remove("is-drop-target");
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type && f.type.startsWith("image/"));
+    if (!files.length) return;
+    e.preventDefault();
+
+    // Place caret at drop coordinates if browser supports it
+    if (document.caretRangeFromPoint) {
+      const dropRange = document.caretRangeFromPoint(e.clientX, e.clientY);
+      if (dropRange && richEditor.contains(dropRange.commonAncestorContainer)) {
+        savedRange = dropRange;
+      }
+    }
+    showUploadStatus(`↑ Uploading ${files.length} dropped photo(s)...`, "loading");
+    for (const file of files) {
+      try {
+        const url = await uploadSingleInlineFile(file);
+        if (url) insertInlinePhotoIntoBody(url, "", "");
+      } catch (err) {
+        showUploadStatus("✗ " + (err.message || "Drop upload failed"), "error");
+      }
+    }
+  });
 }
+
+document.addEventListener("selectionchange", () => {
+  if (document.activeElement === richEditor) saveEditorSelection();
+});
 
 // ─── Character counter ────────────────────────────────────
 const charCountEls = document.querySelectorAll(".char-count[data-field]");
@@ -472,7 +1061,13 @@ function renderGallery() {
         renderGallery();
       } else if (act === "insert-body") {
         const img = uploadedImages[idx];
-        if (img) insertInlinePhotoIntoBody(img.url, img.caption, img.credit);
+        if (img) {
+          if (img.caption || img.credit) {
+            insertInlinePhotoIntoBody(img.url, img.caption, img.credit, "center");
+          } else {
+            openInlinePhotoModal({ url: img.url, caption: img.caption, credit: img.credit });
+          }
+        }
       } else if (act === "move-left" && idx > 0) {
         const temp = uploadedImages[idx];
         uploadedImages[idx] = uploadedImages[idx - 1];
@@ -579,6 +1174,14 @@ if (addUrlBtn && imgUrlInput) {
 }
 
 // ─── Draft saving ─────────────────────────────────────────
+function updateEditorWordCount() {
+  if (!editorWordCount || !richEditor) return;
+  const text = (richEditor.innerText || "").trim();
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  const mins = Math.max(1, Math.ceil(words / 200));
+  editorWordCount.textContent = `${words.toLocaleString("en-US")} word${words === 1 ? "" : "s"} · ${mins} min read`;
+}
+
 function saveDraft() {
   if (!postForm) return;
   try {
@@ -592,9 +1195,14 @@ function saveDraft() {
       featured_image: uploadedImages[0]?.url || "",
       images: uploadedImages,
       tags: fd.get("tags") || "",
-      content_html: richEditor ? richEditor.innerHTML : "",
+      content_html: getCleanEditorHTML(),
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    if (editorSaveStatus) {
+      const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      editorSaveStatus.textContent = `✓ Saved ${now}`;
+    }
+    updateEditorWordCount();
   } catch {}
 }
 
@@ -621,8 +1229,10 @@ function restoreDraft() {
     renderGallery();
     if (draft.content_html && richEditor) {
       richEditor.innerHTML = draft.content_html;
+      decorateInlineFigures();
       syncHidden();
     }
+    updateEditorWordCount();
     charCountEls.forEach(el => updateCharCount(el));
     if (editingPostId && publishBtnText) {
       publishBtnText.textContent = "Update Post";
@@ -694,7 +1304,7 @@ function buildPreview() {
   const category = fd.get("category")?.toString() || "General";
   const author   = fd.get("author")?.toString().trim() || "RYDA Team";
   const summary  = fd.get("summary")?.toString().trim() || "";
-  const content  = richEditor ? richEditor.innerHTML : "";
+  const content  = getCleanEditorHTML();
 
   const prevBadge = document.getElementById("prev-badge");
   const prevTitle = document.getElementById("prev-title");
@@ -749,7 +1359,7 @@ if (postForm) {
     const title   = fd.get("title")?.toString().trim();
     const summary = fd.get("summary")?.toString().trim();
     const content = (richEditor ? richEditor.innerText : fd.get("content")?.toString())?.trim();
-    const contentHtml = richEditor ? richEditor.innerHTML.trim() : "";
+    const contentHtml = getCleanEditorHTML().trim();
 
     if (!title) { showFeedback("Post headline is required.", "error"); return; }
     if (!summary) { showFeedback("A summary is required.", "error"); return; }
@@ -844,12 +1454,32 @@ async function fetchPosts() {
 function renderPostsList(posts) {
   if (!postsList) return;
   const search = (postsSearch?.value || "").toLowerCase().trim();
-  const filtered = search
-    ? posts.filter(p => p.title.toLowerCase().includes(search) || (p.category && p.category.toLowerCase().includes(search)))
-    : posts;
+  const catVal = (postsCatFilter?.value || "").toLowerCase().trim();
+
+  if (postsSummaryBar) {
+    const totalViews = posts.reduce((acc, p) => acc + Number(postViewMap[p.id] || 0), 0);
+    const storyCount = posts.filter(p => (p.category || "").toLowerCase().includes("stor")).length;
+    const photoCount = posts.reduce((acc, p) => acc + ((p.images && p.images.length) || (p.featured_image ? 1 : 0)), 0);
+    postsSummaryBar.innerHTML = `
+      <span class="psb-pill"><strong>${posts.length}</strong> Total Posts</span>
+      <span class="psb-pill"><strong>${storyCount}</strong> Stories</span>
+      <span class="psb-pill"><strong>${photoCount}</strong> Photos</span>
+      <span class="psb-pill"><strong>${totalViews.toLocaleString("en-US")}</strong> Total Views</span>
+    `;
+    postsSummaryBar.hidden = false;
+  }
+
+  const filtered = posts.filter(p => {
+    const matchSearch = !search ||
+      (p.title && p.title.toLowerCase().includes(search)) ||
+      (p.category && p.category.toLowerCase().includes(search)) ||
+      (p.author && p.author.toLowerCase().includes(search));
+    const matchCat = !catVal || (p.category && p.category.toLowerCase().replace(/s$/, "") === catVal.replace(/s$/, ""));
+    return matchSearch && matchCat;
+  });
 
   if (!filtered.length) {
-    postsList.innerHTML = '<div class="posts-empty">No posts found.</div>';
+    postsList.innerHTML = '<div class="posts-empty">No posts match your search or category filter.</div>';
     return;
   }
 
@@ -865,6 +1495,24 @@ function renderPostsList(posts) {
   postsList.querySelectorAll("[data-edit-id]").forEach(btn => {
     btn.addEventListener("click", () => loadPostForEdit(btn.dataset.editId));
   });
+
+  postsList.querySelectorAll("[data-dup-id]").forEach(btn => {
+    btn.addEventListener("click", () => duplicatePostToEditor(btn.dataset.dupId));
+  });
+
+  postsList.querySelectorAll("[data-copy-url]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const fullUrl = window.location.origin + btn.dataset.copyUrl;
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+        const old = btn.textContent;
+        btn.textContent = "✓ Copied";
+        setTimeout(() => { btn.textContent = old; }, 1600);
+      } catch {
+        prompt("Copy article URL:", fullUrl);
+      }
+    });
+  });
 }
 
 function buildPostRow(post) {
@@ -874,10 +1522,14 @@ function buildPostRow(post) {
   const catSafe   = esc(post.category);
   const authSafe  = esc(post.author);
   const imageCount = (post.images && post.images.length) || (post.featured_image ? 1 : 0);
+  const thumbUrl = post.featured_image || (Array.isArray(post.images) && post.images[0]?.url) || "";
   const views = Number(postViewMap[post.id] || 0);
   const href = `/newsroom/${encodeURIComponent(post.slug || post.id)}`;
   return `
-  <div class="post-row">
+  <div class="post-row post-row-with-thumb">
+    <div class="post-row-thumb">
+      ${thumbUrl ? `<img src="${esc(thumbUrl)}" alt="" loading="lazy">` : `<span class="post-row-thumb-empty">RYDA</span>`}
+    </div>
     <div class="post-row-info">
       <span class="post-row-badge">${catSafe}</span> ${imageCount > 0 ? `<span class="post-row-badge" style="background:rgba(200,149,42,0.18);color:#C8952A;">${imageCount} photo${imageCount > 1 ? 's' : ''}</span>` : ''}
       <div class="post-row-title" title="${titleSafe}">${titleSafe}</div>
@@ -885,13 +1537,27 @@ function buildPostRow(post) {
     </div>
     <div class="post-row-actions">
       <a class="btn btn-outline btn-sm" href="${href}" target="_blank" rel="noopener">View ↗</a>
-      <button class="btn btn-outline btn-sm" type="button"
-        data-edit-id="${esc(post.id)}">Edit</button>
+      <button class="btn btn-outline btn-sm" type="button" data-copy-url="${esc(href)}" title="Copy public article link">🔗 Copy</button>
+      <button class="btn btn-outline btn-sm" type="button" data-edit-id="${esc(post.id)}">✏️ Edit</button>
+      <button class="btn btn-outline btn-sm" type="button" data-dup-id="${esc(post.id)}" title="Clone into a new draft">📋 Clone</button>
       <button class="btn btn-danger" type="button"
         data-delete-id="${esc(post.id)}"
         data-delete-title="${titleSafe}">Delete</button>
     </div>
   </div>`;
+}
+
+async function duplicatePostToEditor(id) {
+  await loadPostForEdit(id);
+  editingPostId = null;
+  const titleEl = document.getElementById("f-title");
+  if (titleEl && titleEl.value) titleEl.value = `${titleEl.value} (Copy)`;
+  if (publishBtnText) publishBtnText.textContent = "Publish Post";
+  if (editingBanner) editingBanner.hidden = true;
+  if (editorPanelHeading) editorPanelHeading.textContent = "Publish Story or Article (Cloned Draft)";
+  if (editorPanelSub) editorPanelSub.textContent = "Cloned from existing post — update details and publish as a new story.";
+  saveDraft();
+  showFeedback("Cloned post into a new draft. Edit and click Publish Post.", "success");
 }
 
 async function loadPostForEdit(id) {
@@ -913,6 +1579,7 @@ async function loadPostForEdit(id) {
 
     if (richEditor) {
       richEditor.innerHTML = post.content || "";
+      decorateInlineFigures();
       syncHidden();
     }
 
@@ -971,7 +1638,12 @@ async function confirmDelete(id, title) {
 
 
 if (postsSearch) postsSearch.addEventListener("input", () => renderPostsList(allPosts));
+if (postsCatFilter) postsCatFilter.addEventListener("change", () => renderPostsList(allPosts));
 if (refreshPostsBtn) refreshPostsBtn.addEventListener("click", fetchPosts);
+if (newPostQuickBtn) newPostQuickBtn.addEventListener("click", () => {
+  clearForm();
+  switchPanel("new-post");
+});
 
 // ─── Audience & Views Analytics ───────────────────────────
 const analyticsRoot = document.getElementById("analytics-root");
@@ -1213,6 +1885,7 @@ function renderInquiriesList(messages) {
             <a href="mailto:${esc(msg.email)}?subject=Re:%20${encodeURIComponent(msg.subject || 'RYDA Inquiry')}" class="btn btn-outline btn-sm">
               Reply via Email ✉️
             </a>
+            <button type="button" class="btn btn-danger" data-del-inq="${esc(msg.id)}" title="Delete this message">Delete</button>
           </div>
         </div>
         <div class="inquiry-subject"><strong>Subject:</strong> ${esc(msg.subject || 'General Inquiry')}</div>
@@ -1220,10 +1893,110 @@ function renderInquiriesList(messages) {
       </div>
     `;
   }).join("");
+
+  inquiriesList.querySelectorAll("[data-del-inq]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.delInq;
+      if (!id || !confirm("Delete this inquiry message?")) return;
+      try {
+        const res = await fetch(`/api/contact?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: { "x-writer-token": writerToken }
+        });
+        if (!res.ok) throw new Error("Delete failed");
+        allInquiries = allInquiries.filter(m => m.id !== id);
+        renderInquiriesList(allInquiries);
+        if (inquiriesCountBadge) {
+          inquiriesCountBadge.textContent = String(allInquiries.length);
+          inquiriesCountBadge.hidden = allInquiries.length === 0;
+        }
+      } catch (err) {
+        alert("Failed to delete message: " + err.message);
+      }
+    });
+  });
 }
 
 if (inquiriesSearch) inquiriesSearch.addEventListener("input", () => renderInquiriesList(allInquiries));
 if (refreshInquiriesBtn) refreshInquiriesBtn.addEventListener("click", fetchInquiries);
+
+// ─── Admin Tools, Health & Backup ─────────────────────────
+async function refreshAdminHealth() {
+  if (!adminHealthStatus) return;
+  adminHealthStatus.innerHTML = "Checking live database, views, and storage…";
+  const token = writerToken || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem(TOKEN_KEY) : "") || "";
+  try {
+    const [postsRes, statsRes] = await Promise.all([
+      fetch("/api/posts", { cache: "no-store" }),
+      fetch("/api/views?stats=1&days=14", { headers: { "x-writer-token": token }, cache: "no-store" }).catch(() => null),
+    ]);
+    const posts = postsRes.ok ? await postsRes.json() : [];
+    const stats = statsRes && statsRes.ok ? await statsRes.json() : null;
+    allPosts = Array.isArray(posts) ? posts : [];
+    const storageMode = stats?.storage || "unknown";
+    const isPersistent = String(storageMode).toLowerCase().includes("redis");
+    adminHealthStatus.innerHTML = `
+      <div class="health-grid">
+        <div class="health-stat">
+          <span class="health-label">Storage Engine</span>
+          <strong class="${isPersistent ? "health-ok" : "health-warn"}">${esc(storageMode)}</strong>
+        </div>
+        <div class="health-stat">
+          <span class="health-label">Active Posts</span>
+          <strong>${allPosts.length}</strong>
+        </div>
+        <div class="health-stat">
+          <span class="health-label">Total Article Views</span>
+          <strong>${fmtN(stats?.totals?.articleViews || 0)}</strong>
+        </div>
+        <div class="health-stat">
+          <span class="health-label">Unique Visitors</span>
+          <strong>${fmtN(stats?.totals?.uniqueVisitors || 0)}</strong>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    adminHealthStatus.innerHTML = `<span style="color:var(--danger)">Could not check system status: ${esc(err.message)}</span>`;
+  }
+}
+
+function downloadJsonFile(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+if (refreshHealthBtn) refreshHealthBtn.addEventListener("click", refreshAdminHealth);
+if (exportPostsBtn) {
+  exportPostsBtn.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/posts", { cache: "no-store" });
+      const data = await res.json();
+      const dateTag = new Date().toISOString().slice(0, 10);
+      downloadJsonFile(`ryda-posts-backup-${dateTag}.json`, data);
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    }
+  });
+}
+if (exportInqBtn) {
+  exportInqBtn.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/contact", { headers: { "x-writer-token": writerToken }, cache: "no-store" });
+      const data = await res.json();
+      const dateTag = new Date().toISOString().slice(0, 10);
+      downloadJsonFile(`ryda-inquiries-backup-${dateTag}.json`, data);
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    }
+  });
+}
 
 function showUploadStatus(msg, type) {
   if (!uploadStatus) return;

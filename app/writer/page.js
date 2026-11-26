@@ -69,6 +69,10 @@ const rawHTML = `
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 2L12.4 7.2L18 8.1L14 12L15 17.5L10 15L5 17.5L6 12L2 8.1L7.6 7.2L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
           Guidelines
         </button>
+        <button class="sb-link" data-panel="admin-tools" type="button">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 13a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M16.2 12a1.4 1.4 0 00.28 1.54l.05.05a1.7 1.7 0 11-2.4 2.4l-.05-.05a1.4 1.4 0 00-1.54-.28 1.4 1.4 0 00-.84 1.28V17a1.7 1.7 0 11-3.4 0v-.08a1.4 1.4 0 00-.91-1.28 1.4 1.4 0 00-1.54.28l-.05.05a1.7 1.7 0 11-2.4-2.4l.05-.05a1.4 1.4 0 00.28-1.54 1.4 1.4 0 00-1.28-.84H3a1.7 1.7 0 110-3.4h.08a1.4 1.4 0 001.28-.91 1.4 1.4 0 00-.28-1.54l-.05-.05a1.7 1.7 0 112.4-2.4l.05.05a1.4 1.4 0 001.54.28h.07a1.4 1.4 0 00.84-1.28V3a1.7 1.7 0 113.4 0v.08a1.4 1.4 0 00.84 1.28 1.4 1.4 0 001.54-.28l.05-.05a1.7 1.7 0 112.4 2.4l-.05.05a1.4 1.4 0 00-.28 1.54v.07a1.4 1.4 0 001.28.84H17a1.7 1.7 0 110 3.4h-.08a1.4 1.4 0 00-1.28.84z" stroke="currentColor" stroke-width="1.3"/></svg>
+          Admin Tools &amp; Backup
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -85,6 +89,13 @@ const rawHTML = `
 
     <!-- Main content -->
     <main class="main-panel">
+      <div class="mobile-topbar">
+        <button type="button" class="mobile-menu-btn" id="mobile-sidebar-btn" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" width="22" height="22"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
+        <span class="mobile-topbar-title">RYDA Writer Panel</span>
+      </div>
+      <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
 
       <!-- ─── NEW POST PANEL ──────────────────────────────────────── -->
       <div class="panel is-active" id="panel-new-post">
@@ -165,19 +176,27 @@ const rawHTML = `
             <div class="field-group">
               <div class="editor-header-flex">
                 <label for="f-content">Full Story Body <span class="req">*</span></label>
-                <span class="field-hint">You can insert story quotes, pullquotes, and inline photos anywhere!</span>
+                <div class="editor-meta-pills">
+                  <span class="editor-stat-pill" id="editor-word-count">0 words · 1 min read</span>
+                  <span class="editor-save-pill" id="editor-save-status">Draft auto-saved</span>
+                </div>
               </div>
               
               <div class="editor-toolbar" role="toolbar" aria-label="Text formatting">
+                <button type="button" class="tool-btn" data-cmd="undo" title="Undo (Ctrl+Z)">↶</button>
+                <button type="button" class="tool-btn" data-cmd="redo" title="Redo (Ctrl+Y)">↷</button>
+                <div class="tool-sep" aria-hidden="true"></div>
                 <button type="button" class="tool-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
                 <button type="button" class="tool-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
                 <button type="button" class="tool-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+                <button type="button" class="tool-btn" data-cmd="link" title="Insert or Edit Hyperlink">🔗 Link</button>
                 <div class="tool-sep" aria-hidden="true"></div>
                 <button type="button" class="tool-btn" data-cmd="h2" title="Section Heading (H2)">H2</button>
                 <button type="button" class="tool-btn" data-cmd="h3" title="Sub-Heading (H3)">H3</button>
                 <div class="tool-sep" aria-hidden="true"></div>
                 <button type="button" class="tool-btn" data-cmd="ul" title="Bullet list">&#8226; List</button>
                 <button type="button" class="tool-btn" data-cmd="ol" title="Numbered list">1. List</button>
+                <button type="button" class="tool-btn" data-cmd="hr" title="Insert Section Divider">―</button>
                 <div class="tool-sep" aria-hidden="true"></div>
                 
                 <!-- World-class quotation buttons -->
@@ -192,8 +211,8 @@ const rawHTML = `
                 </button>
                 
                 <div class="tool-sep" aria-hidden="true"></div>
-                <button type="button" class="tool-btn tool-photo-btn" data-cmd="insertInlinePhoto" title="Insert inline photo with caption at cursor">
-                  📷 In-Body Photo
+                <button type="button" class="tool-btn tool-photo-btn" data-cmd="insertInlinePhoto" title="Insert an inline photo with caption anywhere in your story (even mid-paragraph)">
+                  📷 Add Photo Here
                 </button>
                 <button type="button" class="tool-btn tool-clear" title="Clear formatting" data-cmd="clear">Clear</button>
               </div>
@@ -204,7 +223,10 @@ const rawHTML = `
                 role="textbox"
                 aria-multiline="true"
                 aria-label="Full story content"
-                data-placeholder="Write your article or human story here. Use the toolbar above to add headings, story quotations, eyewitness testimonies, and in-body photos anywhere in the text..."></div>
+                data-placeholder="Write your article or human story here. Place your cursor anywhere — even in the middle of a paragraph — and click '📷 Add Photo Here' (or paste/drag an image) to insert a photo with caption right there..."></div>
+              <div class="editor-inline-tip">
+                💡 <strong>Photo tip:</strong> Click anywhere inside your text (including the middle of a paragraph) and press <strong>📷 Add Photo Here</strong>, or drag/paste a photo directly into the editor.
+              </div>
               <textarea id="f-content-hidden" name="content" style="display:none"></textarea>
             </div>
 
@@ -297,15 +319,41 @@ const rawHTML = `
       <!-- ─── ALL POSTS PANEL ─────────────────────────────────────── -->
       <div class="panel" id="panel-all-posts" hidden>
         <div class="panel-header">
-          <h1>All Published Posts &amp; Stories</h1>
-          <p>View, edit, or remove newsroom posts from the RYDA live database.</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h1>All Published Posts &amp; Stories</h1>
+              <p>View, edit, copy links, duplicate, or remove newsroom posts from the RYDA live database.</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="new-post-quick-btn">
+              ＋ Write New Story
+            </button>
+          </div>
         </div>
 
+        <div class="posts-summary-bar" id="posts-summary-bar" hidden></div>
+
         <div class="posts-toolbar">
-          <input class="posts-search" id="posts-search" type="search" placeholder="Search by title or category…">
+          <input class="posts-search" id="posts-search" type="search" placeholder="Search by title, author, or keyword…">
+          <select class="posts-cat-filter" id="posts-cat-filter" aria-label="Filter by category">
+            <option value="">All Categories</option>
+            <option value="Stories">Stories</option>
+            <option value="Reports">Reports</option>
+            <option value="Articles">Articles</option>
+            <option value="Statements">Statements</option>
+            <option value="Emergency">Emergency</option>
+            <option value="Advocacy">Advocacy</option>
+            <option value="Leadership">Leadership</option>
+            <option value="Research">Research</option>
+            <option value="Documentation">Documentation</option>
+            <option value="Humanitarian">Humanitarian</option>
+            <option value="Training">Training</option>
+            <option value="Field Reports">Field Reports</option>
+            <option value="Media">Media</option>
+            <option value="Campaigns">Campaigns</option>
+          </select>
           <button class="btn btn-outline btn-sm" type="button" id="refresh-posts">
             <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M2.5 10C2.5 5.86 5.86 2.5 10 2.5C12.43 2.5 14.6 3.65 16 5.5M17.5 10C17.5 14.14 14.14 17.5 10 17.5C7.57 17.5 5.4 16.35 4 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M16 2V6H12M4 18V14H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Refresh List
+            Refresh
           </button>
         </div>
 
@@ -400,7 +448,128 @@ const rawHTML = `
         </div>
       </div>
 
+      <!-- ─── ADMIN TOOLS & BACKUP PANEL ─────────────────────────── -->
+      <div class="panel" id="panel-admin-tools" hidden>
+        <div class="panel-header">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h1>Admin Tools, Health &amp; Backup</h1>
+              <p>Inspect live storage status, export full JSON backups of your stories and inquiries, and jump to any public page.</p>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="refresh-health-btn">↻ Check System Status</button>
+          </div>
+        </div>
+
+        <div class="admin-tools-grid" id="admin-tools-root">
+          <div class="guideline-block">
+            <h3>🗄️ Database &amp; Storage Status</h3>
+            <div id="admin-health-status" class="admin-health-box">Checking live status…</div>
+          </div>
+
+          <div class="guideline-block">
+            <h3>💾 Export &amp; Backup Data</h3>
+            <p style="margin-bottom:14px;">Download portable JSON backups of all published articles or contact inquiries at any time.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" id="export-posts-btn">⬇ Download All Posts (.json)</button>
+              <button type="button" class="btn btn-outline btn-sm" id="export-inquiries-btn">⬇ Download Inquiries (.json)</button>
+            </div>
+          </div>
+
+          <div class="guideline-block">
+            <h3>🌐 Live Website Quick Links</h3>
+            <div class="quick-links-grid">
+              <a href="/" target="_blank" rel="noopener" class="btn btn-outline btn-sm">🏠 Homepage ↗</a>
+              <a href="/newsroom" target="_blank" rel="noopener" class="btn btn-outline btn-sm">📰 Newsroom ↗</a>
+              <a href="/about" target="_blank" rel="noopener" class="btn btn-outline btn-sm">ℹ️ About RYDA ↗</a>
+              <a href="/sitemap" target="_blank" rel="noopener" class="btn btn-outline btn-sm">🗺️ Sitemap ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
+  </div>
+
+  <!-- ═══ INLINE PHOTO MODAL (Insert / Edit Photo at Cursor) ═══════════════ -->
+  <div class="ipm-backdrop" id="inline-photo-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ipm-title">
+    <div class="ipm-dialog">
+      <div class="ipm-header">
+        <div>
+          <h3 id="ipm-title">Insert Photo in Story</h3>
+          <p class="ipm-sub">Photo will be placed cleanly at your cursor position — even in the middle of a paragraph.</p>
+        </div>
+        <button type="button" class="ipm-close" id="ipm-close" aria-label="Close">✕</button>
+      </div>
+
+      <div class="ipm-tabs" id="ipm-tabs" role="tablist">
+        <button type="button" class="ipm-tab is-active" data-ipm-tab="upload">↑ Upload New Photo</button>
+        <button type="button" class="ipm-tab" data-ipm-tab="gallery">🖼️ From Post Photos (<span id="ipm-gal-count">0</span>)</button>
+        <button type="button" class="ipm-tab" data-ipm-tab="url">🔗 Image URL</button>
+      </div>
+
+      <div class="ipm-body">
+        <!-- Tab: Upload -->
+        <div class="ipm-pane is-active" id="ipm-pane-upload">
+          <label class="ipm-dropzone" id="ipm-dropzone">
+            <input type="file" id="ipm-file-input" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden-file-input">
+            <div class="ipm-dropzone-inner">
+              <span class="ipm-drop-icon">📷</span>
+              <span><strong>Click to choose a photo</strong> or drag &amp; drop here</span>
+              <span class="ipm-drop-hint">JPG, PNG, WebP, GIF up to 6MB — uncropped full quality</span>
+            </div>
+          </label>
+          <div class="ipm-status" id="ipm-upload-status" hidden></div>
+        </div>
+
+        <!-- Tab: Gallery Picker -->
+        <div class="ipm-pane" id="ipm-pane-gallery" hidden>
+          <div class="ipm-gallery-grid" id="ipm-gallery-grid">
+            <div class="ipm-gallery-empty">No photos uploaded to this post yet. Use "Upload New Photo" or "Image URL".</div>
+          </div>
+        </div>
+
+        <!-- Tab: URL -->
+        <div class="ipm-pane" id="ipm-pane-url" hidden>
+          <div class="ipm-url-row">
+            <input type="url" id="ipm-url-input" placeholder="https://example.com/photo.jpg">
+            <button type="button" class="btn btn-outline btn-sm" id="ipm-url-load">Load Preview</button>
+          </div>
+        </div>
+
+        <!-- Selected Photo Preview -->
+        <div class="ipm-preview-box" id="ipm-preview-box" hidden>
+          <img id="ipm-preview-img" src="" alt="Selected photo preview">
+        </div>
+
+        <!-- Caption, Credit & Layout -->
+        <div class="ipm-fields">
+          <div class="ipm-field">
+            <label for="ipm-caption">Photo Caption</label>
+            <input type="text" id="ipm-caption" placeholder="Describe what is shown in this photo (displayed underneath)...">
+          </div>
+          <div class="ipm-field-row">
+            <div class="ipm-field">
+              <label for="ipm-credit">Photographer Credit</label>
+              <input type="text" id="ipm-credit" placeholder="e.g. Photo by Ro Harez Khan">
+            </div>
+            <div class="ipm-field">
+              <label for="ipm-layout">Layout &amp; Alignment</label>
+              <select id="ipm-layout">
+                <option value="center">Centered (Recommended)</option>
+                <option value="wide">Wide Editorial Feature</option>
+                <option value="left">Float Left (Wrap text right)</option>
+                <option value="right">Float Right (Wrap text left)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ipm-footer">
+        <button type="button" class="btn btn-ghost-dark btn-sm" id="ipm-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="ipm-insert-btn" disabled>📷 Insert Photo at Cursor</button>
+      </div>
+    </div>
   </div>
 `;
 

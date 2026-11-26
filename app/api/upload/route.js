@@ -8,11 +8,12 @@ let redisPromise = null;
 
 async function getRedis() {
   if (redis && redis.isOpen) return redis;
-  if (!process.env.REDIS_URL) return null;
+  const url = process.env.REDIS_URL || process.env.KV_URL;
+  if (!url) return null;
   if (!redisPromise) {
     redisPromise = (async () => {
       try {
-        redis = createClient({ url: process.env.REDIS_URL });
+        redis = createClient({ url });
         redis.on('error', (err) => console.error('Redis client error:', err));
         await redis.connect();
         return redis;

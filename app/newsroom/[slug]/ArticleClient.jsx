@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
@@ -393,10 +393,31 @@ export default function ArticleClient({ post: preloadedPost }) {
         : (post.featured_image ? [post.featured_image] : []))
     : [];
 
-  const images = rawImages.map(img => {
+  const images = useMemo(() => rawImages.map(img => {
     if (typeof img === 'string') return { url: img, caption: '', credit: '' };
     return { url: img?.url || '', caption: img?.caption || '', credit: img?.credit || '' };
-  }).filter(img => img.url);
+  }).filter(img => img.url), [post]);
+
+  // Extract inline body images so clicking any mid-paragraph photo opens Lightbox reliably
+  const [inlineImgsList, setInlineImgsList] = useState([]);
+  const lightboxImages = useMemo(() => {
+    const merged = [...images];
+    const seen = new Set(merged.map(i => i.url));
+    inlineImgsList.forEach(item => {
+      if (item.url && !seen.has(item.url)) {
+        seen.add(item.url);
+        merged.push(item);
+      }
+    });
+    return merged;
+  }, [images, inlineImgsList]);
+
+  const sanitizedContent = useMemo(() => {
+    if (!post?.content) return '<p><em>Content not available.</em></p>';
+    return String(post.content)
+      .replace(/<div class="inline-fig-controls"[\s\S]*?<\/div>/gi, '')
+      .replace(/\scontenteditable="(?:true|false)"/gi, '');
+  }, [post]);
 
   const readTime = post ? calcReadTime((post.content || '') + (post.summary || '')) : 1;
 
@@ -454,7 +475,7 @@ export default function ArticleClient({ post: preloadedPost }) {
           const allRes = await fetch('/api/posts');
           if (allRes.ok && !cancelled) {
             const all = await allRes.json();
-            setRelatedPosts(all.filter(p => p.id !== slug && p.slug !== slug).slice(0, 3));
+            setRelatedPosts(all.filter(p => p.id !== slug && p.slug !== slug).slice(0, 5));
           }
         } else {
           if (!cancelled) setNotFound(true);
@@ -476,35 +497,56 @@ export default function ArticleClient({ post: preloadedPost }) {
     const timer = setTimeout(() => {
       const bodyEl = document.querySelector('.article-body');
       if (!bodyEl) return;
-      const inlineImgs = bodyEl.querySelectorAll('img');
+      const inlineImgs = Array.from(bodyEl.querySelectorAll('img'));
+      const discovered = [];
       inlineImgs.forEach(img => {
-        img.style.cursor = 'pointer';
+        const src = img.getAttribute('src') || img.src || '';
+        const fig = img.closest('figure');
+        let cap = '';
+        let credit = '';
+        if (fig) {
+          const figCap = fig.querySelector('figcaption');
+          const credEl = fig.querySelector('.photo-credit');
+          credit = credEl ? credEl.textContent.trim() : '';
+          if (figCap) {
+            const cloneCap = figCap.cloneNode(true);
+            cloneCap.querySelectorAll('.photo-credit').forEach(el => el.remove());
+            cap = cloneCap.textContent.trim();
+          }
+        }
+        if (src) discovered.push({ url: src, caption: cap, credit });
+        img.style.cursor = 'zoom-in';
         img.title = 'Click to enlarge photo';
         img.onclick = () => {
-          const src = img.src;
-          const fig = img.closest('figure');
-          const cap = fig ? (fig.querySelector('figcaption')?.textContent || '') : '';
-          const existingIdx = images.findIndex(im => im.url === src || src.endsWith(im.url));
-          if (existingIdx !== -1) {
-            setActiveModalIdx(existingIdx);
-          } else {
-            images.push({ url: src, caption: cap, credit: '' });
-            setActiveModalIdx(images.length - 1);
+          const fullSrc = img.src;
+          const allCandidates = [...images, ...discovered];
+          const unique = [];
+          const seen = new Set();
+          allCandidates.forEach(c => {
+            if (c.url && !seen.has(c.url)) {
+              seen.add(c.url);
+              unique.push(c);
+            }
+          });
+          const idx = unique.findIndex(im => im.url === src || im.url === fullSrc || fullSrc.endsWith(im.url));
+          if (idx !== -1) {
+            setActiveModalIdx(idx);
           }
         };
       });
-    }, 200);
+      setInlineImgsList(discovered);
+    }, 180);
     return () => clearTimeout(timer);
   }, [post, images]);
 
   const handlePrev = () => {
-    if (activeModalIdx === null) return;
-    setActiveModalIdx((activeModalIdx - 1 + images.length) % images.length);
+    if (activeModalIdx === null || !lightboxImages.length) return;
+    setActiveModalIdx((activeModalIdx - 1 + lightboxImages.length) % lightboxImages.length);
   };
 
   const handleNext = () => {
-    if (activeModalIdx === null) return;
-    setActiveModalIdx((activeModalIdx + 1) % images.length);
+    if (activeModalIdx === null || !lightboxImages.length) return;
+    setActiveModalIdx((activeModalIdx + 1) % lightboxImages.length);
   };
 
   if (loading) {
@@ -624,82 +666,122 @@ export default function ArticleClient({ post: preloadedPost }) {
       </section>
 
       <section className="article-content-section">
-        <div className="article-container">
-          {images.length > 0 && (
-            <figure className="article-featured-image-wrap">
-              <div className="article-featured-image" onClick={() => setActiveModalIdx(0)} style={{ cursor: 'zoom-in' }} title="Click to open photo viewer">
-                <div className="featured-backdrop" style={{ backgroundImage: `url("${images[0].url}")` }} aria-hidden="true"></div>
-                <img src={images[0].url} alt={images[0].caption || post.title} />
-                {images.length > 1 && (
-                  <div className="photo-badge-overlay">
-                    📷 {images.length} Photos — Click to expand
-                  </div>
-                )}
-              </div>
-              {(images[0].caption || images[0].credit) && (
-                <figcaption className="photo-caption-text">
-                  {images[0].caption && <span className="photo-caption-main">{images[0].caption}</span>}
-                  {images[0].credit && <span className="photo-caption-sub">{images[0].credit}</span>}
-                </figcaption>
-              )}
-            </figure>
-          )}
-
-          <article className="article-body editorial-typography" dangerouslySetInnerHTML={{ __html: post.content || '<p><em>Content not available.</em></p>' }} />
-
-          {post.tags && post.tags.length > 0 && (
-            <div className="article-tags-footer">
-              {post.tags.map(t => <span key={t} className="article-tag-chip">#{String(t).trim()}</span>)}
-            </div>
-          )}
-
-          {/* Multi-Photo Gallery Grid */}
-          {images.length > 1 && (
-            <div className="article-gallery-section">
-              <h3 className="gallery-title">📷 Photo Gallery ({images.length} Photos)</h3>
-              <div className="article-gallery-grid">
-                {images.map((imgObj, i) => (
-                  <div key={i} className="gallery-card-item">
-                    <div className="gallery-card" onClick={() => setActiveModalIdx(i)} title="Click to view full photo">
-                      <img src={imgObj.url} alt={`Photo ${i + 1}`} loading="lazy" />
-                      <div className="gallery-card-zoom">🔍 Zoom</div>
+        <div className="article-layout-shell">
+          <div className="article-main-col">
+            {images.length > 0 && (
+              <figure className="article-featured-image-wrap">
+                <div className="article-featured-image" onClick={() => setActiveModalIdx(0)} style={{ cursor: 'zoom-in' }} title="Click to open photo viewer">
+                  <div className="featured-backdrop" style={{ backgroundImage: `url("${images[0].url}")` }} aria-hidden="true"></div>
+                  <img src={images[0].url} alt={images[0].caption || post.title} />
+                  {lightboxImages.length > 1 && (
+                    <div className="photo-badge-overlay">
+                      📷 {lightboxImages.length} Photos — Click to expand
                     </div>
-                    {(imgObj.caption || imgObj.credit) && (
-                      <div className="gallery-card-caption">
-                        {imgObj.caption && <span className="caption-title">{imgObj.caption}</span>}
-                        {imgObj.credit && <span className="caption-credit">Photo: {imgObj.credit}</span>}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <ShareButtons title={post.title} url={articleUrl} />
-
-          <div className="article-bottom-nav">
-            <Link href="/newsroom" className="btn btn-outline">
-              ← Back to All Articles &amp; Stories
-            </Link>
-            {isWriter && (
-              <>
-                <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="btn btn-primary" style={{ marginLeft: '12px' }}>
-                  <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-                    <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Edit this Article</span>
-                </Link>
-                <button type="button" onClick={handleDeletePost} disabled={isDeleting} className="btn btn-danger-post" style={{ marginLeft: '12px' }} title="Delete this post">
-                  <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-                    <path d="M3 5H17M8 5V3H12V5M5 5L6 17C6 17.55 6.45 18 7 18H13C13.55 18 14 17.55 14 17L15 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>{isDeleting ? 'Deleting…' : 'Delete this Article'}</span>
-                </button>
-              </>
+                  )}
+                </div>
+                {(images[0].caption || images[0].credit) && (
+                  <figcaption className="photo-caption-text">
+                    {images[0].caption && <span className="photo-caption-main">{images[0].caption}</span>}
+                    {images[0].credit && <span className="photo-caption-sub">{images[0].credit}</span>}
+                  </figcaption>
+                )}
+              </figure>
             )}
+
+            <article className="article-body editorial-typography" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+
+            <div className="article-clear-floats" aria-hidden="true"></div>
+
+            {post.tags && post.tags.length > 0 && (
+              <div className="article-tags-footer">
+                {post.tags.map(t => <span key={t} className="article-tag-chip">#{String(t).trim()}</span>)}
+              </div>
+            )}
+
+            {/* Multi-Photo Gallery Grid */}
+            {images.length > 1 && (
+              <div className="article-gallery-section">
+                <h3 className="gallery-title">📷 Photo Gallery ({images.length} Photos)</h3>
+                <div className="article-gallery-grid">
+                  {images.map((imgObj, i) => (
+                    <div key={i} className="gallery-card-item">
+                      <div className="gallery-card" onClick={() => setActiveModalIdx(i)} title="Click to view full photo">
+                        <img src={imgObj.url} alt={`Photo ${i + 1}`} loading="lazy" />
+                        <div className="gallery-card-zoom">🔍 Zoom</div>
+                      </div>
+                      {(imgObj.caption || imgObj.credit) && (
+                        <div className="gallery-card-caption">
+                          {imgObj.caption && <span className="caption-title">{imgObj.caption}</span>}
+                          {imgObj.credit && <span className="caption-credit">Photo: {imgObj.credit}</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <ShareButtons title={post.title} url={articleUrl} />
+
+            <div className="article-bottom-nav">
+              <Link href="/newsroom" className="btn btn-outline">
+                ← Back to All Articles &amp; Stories
+              </Link>
+              {isWriter && (
+                <>
+                  <Link href={`/writer?edit=${encodeURIComponent(post.id || post.slug)}`} className="btn btn-primary">
+                    <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                      <path d="M14.5 2.5L17.5 5.5L7 16H4V13L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Edit this Article</span>
+                  </Link>
+                  <button type="button" onClick={handleDeletePost} disabled={isDeleting} className="btn btn-danger-post" title="Delete this post">
+                    <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                      <path d="M3 5H17M8 5V3H12V5M5 5L6 17C6 17.55 6.45 18 7 18H13C13.55 18 14 17.55 14 17L15 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>{isDeleting ? 'Deleting…' : 'Delete this Article'}</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
+          {/* Sticky Editorial Sidebar ("Latest Posts") */}
+          {relatedPosts.length > 0 && (
+            <aside className="article-sidebar" aria-label="Latest Posts">
+              <div className="sidebar-box">
+                <div className="sidebar-box-head">
+                  <span className="sidebar-dot" aria-hidden="true"></span>
+                  <h3>Latest Posts</h3>
+                </div>
+                <div className="sidebar-posts-list">
+                  {relatedPosts.slice(0, 5).map(item => {
+                    const sHref = `/newsroom/${item.slug || item.id}`;
+                    const thumb = item.featured_image || (Array.isArray(item.images) && item.images[0]?.url) || '';
+                    return (
+                      <Link href={sHref} key={item.id || item.slug} className="sidebar-post-item">
+                        {thumb ? (
+                          <div className="sidebar-post-thumb">
+                            <img src={thumb} alt={item.title} loading="lazy" />
+                          </div>
+                        ) : (
+                          <div className="sidebar-post-thumb sidebar-post-thumb-empty">RYDA</div>
+                        )}
+                        <div className="sidebar-post-info">
+                          <span className="sidebar-post-cat">{item.category}</span>
+                          <h4>{item.title}</h4>
+                          <time dateTime={item.date}>{fmtDate(item.date || item.createdAt)}</time>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+                <Link href="/newsroom" className="sidebar-all-link">
+                  Browse All Stories &amp; Reports →
+                </Link>
+              </div>
+            </aside>
+          )}
         </div>
       </section>
 
@@ -711,10 +793,15 @@ export default function ArticleClient({ post: preloadedPost }) {
               <h2>Related Articles</h2>
             </div>
             <div className="related-grid">
-              {relatedPosts.map(item => {
+              {relatedPosts.slice(0, 3).map(item => {
                 const rHref = `/newsroom/${item.slug || item.id}`;
                 return (
                 <Link href={rHref} key={item.id} className="nr-card">
+                  {item.featured_image && (
+                    <div className="nr-card-image">
+                      <img src={item.featured_image} alt={item.title} loading="lazy" />
+                    </div>
+                  )}
                   <div className="nr-card-body">
                     <span className="news-badge">{item.category}</span>
                     <h3>{item.title}</h3>
@@ -730,7 +817,7 @@ export default function ArticleClient({ post: preloadedPost }) {
               })}
             </div>
             <div className="related-cta">
-              <Link href="/newsroom" className="is-btn-secondary">View All Articles →</Link>
+              <Link href="/newsroom" className="btn btn-outline">View All Articles →</Link>
             </div>
           </div>
         </section>
@@ -739,7 +826,7 @@ export default function ArticleClient({ post: preloadedPost }) {
       {/* Lightbox Modal */}
       {activeModalIdx !== null && (
         <LightboxModal
-          images={images}
+          images={lightboxImages}
           activeIdx={activeModalIdx}
           onClose={() => setActiveModalIdx(null)}
           onPrev={handlePrev}
